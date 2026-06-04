@@ -1,6 +1,10 @@
 -- ═══════════════════════════════════════════════════════════════════
 -- SCRIPT DE INICIALIZAÇÃO E CRIAÇÃO DAS TABELAS DO ECOSSISTEMA IALVES PNEUS
 -- ═══════════════════════════════════════════════════════════════════
+-- ⚠️  EXECUTE ESTE SCRIPT COMPLETO NO "SQL EDITOR" DO PAINEL DO SUPABASE.
+-- ⚠️  Inclui DDL das tabelas, seeds de dados iniciais e policies de RLS
+--     para resolver erros 401 (Unauthorized) na chave anônima pública.
+-- ═══════════════════════════════════════════════════════════════════
 
 -- Habilitar a extensão pgcrypto para UUID caso necessário
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
@@ -165,3 +169,90 @@ ON CONFLICT (id) DO UPDATE SET
     whatsapp_numero = EXCLUDED.whatsapp_numero,
     hero_titulo = EXCLUDED.hero_titulo,
     hero_subtitulo = EXCLUDED.hero_subtitulo;
+
+
+-- ═══════════════════════════════════════════════════════════════════
+-- ROW LEVEL SECURITY (RLS) — POLÍTICAS DE ACESSO POR TABELA
+-- ═══════════════════════════════════════════════════════════════════
+-- CAUSA DO ERRO 401: O Supabase ativa RLS por padrão em tabelas novas.
+-- Sem policies explícitas, a chave 'anon' (pública) não tem acesso a nada.
+-- Abaixo: leitura pública liberada para o catálogo e escrita somente
+-- para usuários autenticados (painel administrativo).
+-- ═══════════════════════════════════════════════════════════════════
+
+-- TABELA: pneus (leitura pública, escrita somente autenticados)
+ALTER TABLE pneus ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Leitura publica de pneus"
+  ON pneus FOR SELECT
+  TO anon, authenticated
+  USING (true);
+
+CREATE POLICY "Escrita de pneus somente autenticados"
+  ON pneus FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+
+-- TABELA: banners (leitura pública, escrita somente autenticados)
+ALTER TABLE banners ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Leitura publica de banners"
+  ON banners FOR SELECT
+  TO anon, authenticated
+  USING (true);
+
+CREATE POLICY "Escrita de banners somente autenticados"
+  ON banners FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+
+-- TABELA: configuracoes (leitura pública, escrita somente autenticados)
+ALTER TABLE configuracoes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Leitura publica de configuracoes"
+  ON configuracoes FOR SELECT
+  TO anon, authenticated
+  USING (true);
+
+CREATE POLICY "Escrita de configuracoes somente autenticados"
+  ON configuracoes FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+
+-- TABELA: afiliados (somente autenticados)
+ALTER TABLE afiliados ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Acesso de afiliados somente autenticados"
+  ON afiliados FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+
+-- TABELA: allowed_users (somente autenticados)
+ALTER TABLE allowed_users ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Leitura de allowed_users somente autenticados"
+  ON allowed_users FOR SELECT
+  TO authenticated
+  USING (true);
+
+
+-- TABELA: login_audits (somente autenticados, com insert para anon durante o fluxo de bloqueio)
+ALTER TABLE login_audits ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Insert de login_audits para todos"
+  ON login_audits FOR INSERT
+  TO anon, authenticated
+  WITH CHECK (true);
+
+CREATE POLICY "Leitura de login_audits somente autenticados"
+  ON login_audits FOR SELECT
+  TO authenticated
+  USING (true);
