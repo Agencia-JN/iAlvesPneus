@@ -12,6 +12,9 @@
 - [x] **Script SQL de Criação de Tabelas e Seed (`supabase_schema.sql`):**
   - **DDL Completo:** Disponibilizado o script SQL completo para ser executado no editor do painel do Supabase, configurando as tabelas `pneus`, `banners`, `configuracoes`, `allowed_users`, `login_audits` e `afiliados`.
   - **Seeds Iniciais:** Inclui a lista de pneus comerciais idênticos ao mock do frontend, banners e configurações globais (com ID 1) para imediata inicialização.
+- [x] **Versionamento e Deploy de Código (GitHub Push):**
+  - **Remoto Configurado:** Vinculado o repositório oficial da Agência JN `https://github.com/Agencia-JN/iAlvesPneus.git`.
+  - **Subida de Arquivos:** Submetido todo o código-fonte homologado de forma segura e protegida pelo `.gitignore` na branch `master` com sucesso.
 - [x] **Resolução do Erro 500 de Runtime (Event Handlers):**
   - **Conversão para Client Component:** Adicionada a diretiva `"use client"` no início de `src/app/page.tsx`, transformando o componente `Home` de Server Component assíncrono para Client Component síncrono.
   - **Dinamização do Fetch:** Reestruturamos a chamada de APIs e dados do Supabase e cache local (`localStorage`) para rodar dentro de um bloco React `useEffect` e gerenciar as informações em estados locais (`useState`), garantindo que os eventos de clique do menu hambúrguer e do buscador móvel funcionem perfeitamente em runtime sem quebrar o servidor Next.js.
