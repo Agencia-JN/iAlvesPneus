@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { getWhatsappLink } from '@/lib/utils';
 
 // Tipo de dados técnica do pneu
 export interface Pneu {
@@ -303,18 +304,41 @@ const MOCK_PNEUS: Pneu[] = [
   },
 ];
 
-interface VitrineProps {
+const getCookie = (name: string) => {
+  if (typeof document === 'undefined') return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+  return null;
+};
+
+export interface VitrineProps {
   avisoFreteAtivo?: boolean;
+  // Dados passados pelo page.tsx (carregados em paralelo — sem query dupla)
+  whatsappNumero?: string;
+  pneusIniciais?: Pneu[];
+  campanhaAfiliado?: boolean;
 }
 
-export default function Vitrine({ avisoFreteAtivo: avisoFreteAtivoProp = true }: VitrineProps) {
+export default function Vitrine({
+  avisoFreteAtivo = true,
+  whatsappNumero: whatsappProp = '5511999999999',
+  pneusIniciais = [],
+  campanhaAfiliado = false,
+}: VitrineProps) {
   const [categoria, setCategoria] = useState<'Borrachudo' | 'Liso'>('Borrachudo');
-  const [pneus, setPneus] = useState<Pneu[]>(MOCK_PNEUS);
-  const [whatsappNumero, setWhatsappNumero] = useState('5511999999999');
-  const [campanhaAtiva, setCampanhaAtiva] = useState(false);
+  // Usa pneus recebidos do parent; fallback para MOCK apenas se não foram passados
+  const [pneus, setPneus] = useState<Pneu[]>(pneusIniciais.length > 0 ? pneusIniciais : MOCK_PNEUS);
+  const whatsappNumero = whatsappProp;
+  const campanhaAtiva = campanhaAfiliado;
   const [refParceiro, setRefParceiro] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [avisoFreteAtivo, setAvisoFreteAtivo] = useState(avisoFreteAtivoProp);
+
+  // Sincroniza pneus quando o parent carrega dados do banco
+  useEffect(() => {
+    if (pneusIniciais && pneusIniciais.length > 0) {
+      setPneus(pneusIniciais);
+    }
+  }, [pneusIniciais]);
 
   // Filtros de busca técnica aplicados
   const [buscaLargura, setBuscaLargura] = useState<string>('Todos');
@@ -326,108 +350,63 @@ export default function Vitrine({ avisoFreteAtivo: avisoFreteAtivoProp = true }:
   const [tempPerfil, setTempPerfil] = useState<string>('Todos');
   const [tempAro, setTempAro] = useState<string>('Todos');
 
-  // 1. Carrega dados de configuração e pneus do Supabase (com fallback amigável)
-  useEffect(() => {
-    async function loadData() {
-      try {
-        if (typeof window !== 'undefined') {
-          const cachedPneus = localStorage.getItem('pneus_demo');
-          const cachedConfigs = localStorage.getItem('configs_demo');
-          if (cachedPneus) {
-            try {
-              setPneus(JSON.parse(cachedPneus));
-            } catch (e) {
-              console.error('Erro ao fazer parse dos pneus locais:', e);
-            }
-          }
-          if (cachedConfigs) {
-            try {
-              const conf = JSON.parse(cachedConfigs);
-              if (conf.whatsapp_numero) {
-                setWhatsappNumero(conf.whatsapp_numero.replace(/\D/g, ''));
-              }
-              if (conf.campanha_afiliados_ativa !== undefined) {
-                setCampanhaAtiva(conf.campanha_afiliados_ativa);
-              }
-              if (conf.aviso_topo_frete_ativo !== undefined) {
-                setAvisoFreteAtivo(conf.aviso_topo_frete_ativo);
-              }
-            } catch (e) {
-              console.error('Erro ao fazer parse das configs locais:', e);
-            }
-          }
-        }
-
-        if (!isSupabaseConfigured()) {
-          setLoading(false);
-          return;
-        }
-        // Busca configurações gerais
-        const { data: configData, error: configError } = await supabase
-          .from('configuracoes')
-          .select('whatsapp_numero, campanha_afiliados_ativa, aviso_topo_frete_ativo')
-          .eq('id', 1)
-          .single();
-
-        if (configData && !configError) {
-          setWhatsappNumero(configData.whatsapp_numero);
-          setCampanhaAtiva(configData.campanha_afiliados_ativa);
-          if (configData.aviso_topo_frete_ativo !== undefined) {
-            setAvisoFreteAtivo(configData.aviso_topo_frete_ativo);
-          }
-        }
-
-        // Busca pneus cadastrados
-        const { data: pneusData, error: pneusError } = await supabase
-          .from('pneus')
-          .select('*')
-          .eq('visibilidade', 'publico')
-          .order('posicao_destaque', { ascending: false });
-
-        if (pneusData && !pneusError && pneusData.length > 0) {
-          const normalized: Pneu[] = pneusData.map((p: any) => ({
-            id: p.id,
-            nome: p.nome,
-            marca: p.marca,
-            categoria: p.categoria,
-            medida: p.medida,
-            largura_mm: p.largura_mm ? Number(p.largura_mm) : 295,
-            perfil_proporcao: p.perfil_proporcao ? Number(p.perfil_proporcao) : 80,
-            aro_polegadas: p.aro_polegadas || '22.5',
-            sulco_mm: Number(p.sulco_mm),
-            largura_cm: 'Consultar',
-            preco_vista: Number(p.preco_vista),
-            imagem_url: p.imagem_url,
-            posicao_destaque: p.posicao_destaque,
-          }));
-          setPneus(normalized);
-        }
-      } catch (err) {
-        console.error('Erro ao conectar ao Supabase:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadData();
-  }, []);
-
   // 2. Captura o código de indicação do parceiro (?ref=) via client-side
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    async function trackAffiliate() {
+      if (typeof window === 'undefined') return;
+      if (!campanhaAtiva) {
+        setRefParceiro(null);
+        return;
+      }
+
       const params = new URLSearchParams(window.location.search);
-      const ref = params.get('ref');
+      let ref = params.get('ref');
+
+      // Se não há parâmetro na URL, tenta recuperar dos cookies/localStorage
+      if (!ref) {
+        ref = getCookie('afiliado_ref') || localStorage.getItem('afiliado_ref');
+      }
+
       if (ref) {
         setRefParceiro(ref);
         sessionStorage.setItem('ref_parceiro', ref);
-      } else {
-        const cachedRef = sessionStorage.getItem('ref_parceiro');
-        if (cachedRef) {
-          setRefParceiro(cachedRef);
+
+        if (isSupabaseConfigured()) {
+          try {
+            // Busca o afiliado correspondente ao código
+            const { data: afiliado } = await supabase
+              .from('afiliados')
+              .select('id, ativo')
+              .eq('codigo_ref', ref)
+              .maybeSingle();
+
+            if (afiliado && afiliado.ativo) {
+              // Salva nos cookies e localStorage por 30 dias
+              document.cookie = `afiliado_ref=${ref}; max-age=2592000; path=/; SameSite=Lax`;
+              document.cookie = `afiliado_id=${afiliado.id}; max-age=2592000; path=/; SameSite=Lax`;
+              localStorage.setItem('afiliado_ref', ref);
+              localStorage.setItem('afiliado_id', afiliado.id);
+
+              // Verifica se já registramos esse clique de link nesta sessão
+              const jaRegistrado = sessionStorage.getItem(`clique_link_registrado_${ref}`);
+              if (!jaRegistrado) {
+                // Registra o evento de clique no link
+                await supabase.from('afiliado_logs').insert({
+                  afiliado_id: afiliado.id,
+                  evento: 'clique_link'
+                });
+                sessionStorage.setItem(`clique_link_registrado_${ref}`, 'true');
+              }
+            }
+          } catch (err) {
+            console.error('Erro ao processar afiliado:', err);
+          }
         }
       }
     }
-  }, []);
+
+    trackAffiliate();
+  }, [campanhaAtiva]);
 
   // Extrai filtros disponíveis unicamente da base de pneus atual + opções padrão comerciais de carga pesada
   const largurasDisponiveis = Array.from(new Set([275, 295, 315, ...pneus.map((p) => p.largura_mm).filter(Boolean)])).sort((a, b) => a - b);
@@ -481,12 +460,17 @@ export default function Vitrine({ avisoFreteAtivo: avisoFreteAtivoProp = true }:
       msg += `\n[Indicação: ${refParceiro}]`;
     }
 
-    const encodeMsg = encodeURIComponent(msg);
-    return `https://wa.me/${whatsappNumero}?text=${encodeMsg}`;
+    return getWhatsappLink(whatsappNumero, msg);
   };
 
   return (
     <section className="pt-0 pb-8 sm:pb-16 md:pb-20 bg-[#0B0B0C]">
+      {campanhaAtiva && refParceiro && (
+        <div className="bg-[#DC2626]/10 border-b border-[#DC2626]/30 px-4 py-3 text-center text-xs font-black text-[#DC2626] uppercase tracking-wider flex items-center justify-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-[#DC2626] animate-ping shrink-0"></span>
+          <span>Navegando com indicação do parceiro: <strong className="text-white underline">{refParceiro}</strong></span>
+        </div>
+      )}
       
       {/* ═══ BUSCADOR POR MEDIDA MOBILE (Empilhado Nativo no fluxo, Estilo TireShop) ═══ */}
       <div className="block md:hidden w-full bg-[#121214] border-b border-gray-800/60 p-4 space-y-3">
@@ -695,9 +679,18 @@ export default function Vitrine({ avisoFreteAtivo: avisoFreteAtivoProp = true }:
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
               <a
-                href={`https://wa.me/${whatsappNumero}?text=Olá! Estava buscando pneus na medida ${buscaLargura !== 'Todos' ? buscaLargura : '295'}/${buscaPerfil !== 'Todos' ? buscaPerfil : '80'} R${buscaAro !== 'Todos' ? buscaAro : '22.5'} e não encontrei no estoque. Vocês têm disponível para encomenda?`}
+                href={getWhatsappLink(whatsappNumero, `Olá! Estava buscando pneus na medida ${buscaLargura !== 'Todos' ? buscaLargura : '295'}/${buscaPerfil !== 'Todos' ? buscaPerfil : '80'} R${buscaAro !== 'Todos' ? buscaAro : '22.5'} e não encontrei no estoque. Vocês têm disponível para encomenda?`)}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => {
+                  const afiliadoId = getCookie('afiliado_id') || localStorage.getItem('afiliado_id');
+                  if (campanhaAtiva && afiliadoId && isSupabaseConfigured()) {
+                    supabase
+                      .from('afiliado_logs')
+                      .insert({ afiliado_id: afiliadoId, evento: 'clique_whatsapp' })
+                      .then(() => {});
+                  }
+                }}
                 className="px-6 py-3 bg-[#22C55E] hover:bg-[#16A34A] text-white font-black uppercase text-xs tracking-widest transition-colors flex items-center gap-2 rounded-none"
               >
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
@@ -765,6 +758,7 @@ export default function Vitrine({ avisoFreteAtivo: avisoFreteAtivoProp = true }:
                         src={pneu.imagem_url}
                         alt={pneu.nome}
                         fill
+                        unoptimized
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         className="object-contain p-6 transition-transform duration-500 group-hover:scale-105 group-hover:rotate-2"
                       />
@@ -831,6 +825,15 @@ export default function Vitrine({ avisoFreteAtivo: avisoFreteAtivoProp = true }:
                       href={handleComprarLink(pneu)}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={() => {
+                        const afiliadoId = getCookie('afiliado_id') || localStorage.getItem('afiliado_id');
+                        if (campanhaAtiva && afiliadoId && isSupabaseConfigured()) {
+                          supabase
+                            .from('afiliado_logs')
+                            .insert({ afiliado_id: afiliadoId, evento: 'clique_whatsapp' })
+                            .then(() => {});
+                        }
+                      }}
                       className="flex items-center justify-center w-full py-4 bg-[#DC2626] hover:bg-[#B91C1C] text-white font-black uppercase text-xs tracking-widest transition-all duration-300 rounded-none shadow-lg shadow-[#DC2626]/10 group-hover:shadow-[#DC2626]/20 cursor-pointer border border-[#DC2626] hover:scale-[1.02]"
                     >
                       COMPRAR NO WHATSAPP

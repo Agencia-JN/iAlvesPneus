@@ -9,18 +9,18 @@
 -- Habilitar a extensão pgcrypto para UUID caso necessário
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- 1. TABELA: allowed_users (Usuários autorizados a entrar na diretoria)
-CREATE TABLE IF NOT EXISTS allowed_users (
+-- 1. TABELA: administradores (E-mails autorizados a acessar a Central da Diretoria)
+CREATE TABLE IF NOT EXISTS public.administradores (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email TEXT UNIQUE NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    role TEXT NOT NULL DEFAULT 'ADMIN' CHECK (role IN ('SUPER_ADMIN', 'ADMIN')),
+    status TEXT NOT NULL DEFAULT 'PENDENTE' CHECK (status IN ('ATIVO', 'BLOQUEADO', 'PENDENTE'))
 );
 
--- Seed de Usuários Permitidos (Ajuste o e-mail se necessário)
-INSERT INTO allowed_users (email) VALUES 
-('nilson.brites@gmail.com'),
-('diretoria.demonstracao@ialves.com')
-ON CONFLICT (email) DO NOTHING;
+-- Seed: Administrador principal autorizado como SUPER_ADMIN
+INSERT INTO public.administradores (email, role, status) VALUES 
+('nilson.brites@gmail.com', 'SUPER_ADMIN', 'ATIVO')
+ON CONFLICT (email) DO UPDATE SET role = 'SUPER_ADMIN', status = 'ATIVO';
 
 
 -- 2. TABELA: login_audits (Logs de auditoria e segurança de login)
@@ -122,6 +122,7 @@ CREATE TABLE IF NOT EXISTS configuracoes (
     aviso_topo_frete_ativo BOOLEAN DEFAULT TRUE,
     cnpj TEXT DEFAULT '00.000.000/0001-00',
     direitos_reservados TEXT DEFAULT 'iAlves Pneus',
+    logo_url TEXT DEFAULT '/logoiAlves.png',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -144,7 +145,8 @@ INSERT INTO configuracoes (
     aviso_topo_frete, 
     aviso_topo_frete_ativo, 
     cnpj, 
-    direitos_reservados
+    direitos_reservados,
+    logo_url
 ) VALUES (
     1,
     '5511999999999',
@@ -163,7 +165,8 @@ INSERT INTO configuracoes (
     'OFERTA DE INAUGURAÇÃO — FRETE GRÁTIS PARA COMPRAS ACIMA DE 4 PNEUS',
     TRUE,
     '00.000.000/0001-00',
-    'iAlves Pneus'
+    'iAlves Pneus',
+    '/logoiAlves.png'
 )
 ON CONFLICT (id) DO UPDATE SET
     whatsapp_numero = EXCLUDED.whatsapp_numero,
@@ -235,13 +238,40 @@ CREATE POLICY "Acesso de afiliados somente autenticados"
   WITH CHECK (true);
 
 
--- TABELA: allowed_users (somente autenticados)
-ALTER TABLE allowed_users ENABLE ROW LEVEL SECURITY;
+-- Função helper para verificar se o usuário logado é SUPER_ADMIN (evita recursão de RLS)
+CREATE OR REPLACE FUNCTION public.is_super_admin()
+RETURNS BOOLEAN SECURITY DEFINER AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.administradores
+    WHERE email = auth.jwt() ->> 'email' AND role = 'SUPER_ADMIN'
+  );
+END;
+$$ LANGUAGE plpgsql;
 
-CREATE POLICY "Leitura de allowed_users somente autenticados"
-  ON allowed_users FOR SELECT
+
+-- TABELA: administradores (somente autenticados podem ler, apenas super admin pode gerenciar)
+ALTER TABLE public.administradores ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Leitura de administradores somente autenticados"
+  ON public.administradores FOR SELECT
   TO authenticated
   USING (true);
+
+CREATE POLICY "Super admins gerenciam a tabela"
+  ON public.administradores FOR ALL
+  TO authenticated
+  USING (public.is_super_admin())
+  WITH CHECK (public.is_super_admin());
+
+CREATE POLICY "Permitir auto-registro de novos usuarios como PENDENTE"
+  ON public.administradores FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    (auth.jwt() ->> 'email') = email 
+    AND role = 'ADMIN' 
+    AND status = 'PENDENTE'
+  );
 
 
 -- TABELA: login_audits (somente autenticados, com insert para anon durante o fluxo de bloqueio)
@@ -255,4 +285,114 @@ CREATE POLICY "Insert de login_audits para todos"
 CREATE POLICY "Leitura de login_audits somente autenticados"
   ON login_audits FOR SELECT
   TO authenticated
+  USING (true);
+
+
+-- ═══════════════════════════════════════════════════════════════════
+-- STORAGE — BUCKETS PÚBLICOS PARA UPLOAD DE IMAGENS
+-- ═══════════════════════════════════════════════════════════════════
+-- Execute este bloco no SQL Editor do Supabase para criar os buckets
+-- de Storage e configurar as policies de acesso.
+-- ═══════════════════════════════════════════════════════════════════
+
+-- Bucket para imagens de produtos (pneus)
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('pneus', 'pneus', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+-- Bucket para banners promocionais do carrossel
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('banners', 'banners', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+-- Policy: qualquer pessoa pode VER imagens dos pneus
+CREATE POLICY "Leitura publica storage pneus"
+  ON storage.objects FOR SELECT
+  TO anon, authenticated
+  USING (bucket_id = 'pneus');
+
+-- Policy: somente autenticados podem FAZER UPLOAD em pneus
+CREATE POLICY "Upload storage pneus somente autenticados"
+  ON storage.objects FOR INSERT
+  TO authenticated
+  WITH CHECK (bucket_id = 'pneus');
+
+-- Policy: somente autenticados podem DELETAR imagens de pneus
+CREATE POLICY "Delete storage pneus somente autenticados"
+  ON storage.objects FOR DELETE
+  TO authenticated
+  USING (bucket_id = 'pneus');
+
+-- Policy: qualquer pessoa pode VER banners
+CREATE POLICY "Leitura publica storage banners"
+  ON storage.objects FOR SELECT
+  TO anon, authenticated
+  USING (bucket_id = 'banners');
+
+-- Policy: somente autenticados podem FAZER UPLOAD de banners
+CREATE POLICY "Upload storage banners somente autenticados"
+  ON storage.objects FOR INSERT
+  TO authenticated
+  WITH CHECK (bucket_id = 'banners');
+
+-- Policy: somente autenticados podem DELETAR banners
+CREATE POLICY "Delete storage banners somente autenticados"
+  ON storage.objects FOR DELETE
+  TO authenticated
+  USING (bucket_id = 'banners');
+
+
+-- 7. TABELA: activity_logs (Registro detalhado de alterações do sistema)
+CREATE TABLE IF NOT EXISTS public.activity_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    usuario TEXT NOT NULL,
+    acao TEXT NOT NULL,
+    descricao TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Habilitar RLS
+ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
+
+-- Políticas de RLS para activity_logs
+CREATE POLICY "Insert de activity_logs para todos autenticados"
+  ON public.activity_logs FOR INSERT
+  TO authenticated
+  WITH CHECK (true);
+
+CREATE POLICY "Leitura de activity_logs somente autenticados"
+  ON public.activity_logs FOR SELECT
+  TO authenticated
+  USING (true);
+
+
+-- 8. TABELA: afiliado_logs (Rastreio de conversão / cliques dos afiliados)
+CREATE TABLE IF NOT EXISTS public.afiliado_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    afiliado_id UUID NOT NULL REFERENCES public.afiliados(id) ON DELETE CASCADE,
+    evento TEXT NOT NULL CHECK (evento IN ('clique_link', 'clique_whatsapp')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Habilitar RLS em afiliado_logs
+ALTER TABLE public.afiliado_logs ENABLE ROW LEVEL SECURITY;
+
+-- Políticas de RLS para afiliado_logs
+DROP POLICY IF EXISTS "Inserção pública de logs de afiliados" ON public.afiliado_logs;
+CREATE POLICY "Inserção pública de logs de afiliados"
+  ON public.afiliado_logs FOR INSERT
+  TO anon, authenticated
+  WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Leitura de logs de afiliados somente autenticados" ON public.afiliado_logs;
+CREATE POLICY "Leitura de logs de afiliados somente autenticados"
+  ON public.afiliado_logs FOR SELECT
+  TO authenticated
+  USING (true);
+
+-- Política de leitura pública na tabela afiliados para permitir lookup de códigos ref
+DROP POLICY IF EXISTS "Leitura pública de afiliados para lookup de código" ON public.afiliados;
+CREATE POLICY "Leitura pública de afiliados para lookup de código"
+  ON public.afiliados FOR SELECT
+  TO anon, authenticated
   USING (true);

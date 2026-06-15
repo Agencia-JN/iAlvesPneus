@@ -12,11 +12,12 @@ export default function PaginaBloqueado() {
         
         {/* Logo iAlves */}
         <div className="flex justify-center mb-4">
-          <div className="relative w-48 h-12 overflow-hidden bg-black">
+          <div className="relative w-48 h-12 overflow-hidden">
             <Image
               src="/logoiAlves.png"
               alt="iAlves Pneus Logo"
               fill
+              sizes="192px"
               className="object-contain"
             />
           </div>

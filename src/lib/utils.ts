@@ -41,35 +41,104 @@ export function maskCurrency(value: string): string {
  */
 export function maskWhatsapp(value: string): string {
   // Remove tudo que não for dígito
-  const digits = value.replace(/\D/g, '');
+  let digits = value.replace(/\D/g, '');
+  
+  // Se começar com 55 e tiver mais de 11 dígitos, remove o 55 para formatar na regra do Brasil
+  if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) {
+    digits = digits.slice(2);
+  }
   
   if (digits.length <= 2) {
     return digits.length > 0 ? `(${digits}` : '';
   }
-  if (digits.length <= 7) {
+  if (digits.length <= 6) {
     return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  }
+  if (digits.length <= 10) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
   }
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
 }
 
 /**
- * Limpa o número de WhatsApp removendo caracteres especiais e garante o código do país
- * Ex: "(11) 99999-9999" -> "5511999999999" (13 dígitos numéricos)
+ * Limpa o número de WhatsApp retornando apenas o DDD + número (10 ou 11 dígitos)
+ * Ex: "(11) 99999-9999" -> "11999999999"
  */
 export function sanitizeWhatsapp(value: string): string {
-  // Remove tudo que não for dígito
-  const digits = value.replace(/\D/g, '');
+  let digits = value.replace(/\D/g, '');
   
-  // Se for digitado apenas o celular local (11 dígitos, ex: 11999999999)
-  // injetamos o prefixo "55" (Brasil)
-  if (digits.length === 11) {
-    return `55${digits}`;
-  }
-  // Se for digitado com prefixo do país (13 dígitos, ex: 5511999999999)
-  if (digits.length === 13) {
-    return digits;
+  // Se começar com 55 e for um número brasileiro completo (12 ou 13 dígitos), remove o 55
+  if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) {
+    digits = digits.slice(2);
   }
   
-  // Fallback caso seja parcial ou diferente: retorna os dígitos brutos
   return digits;
+}
+
+/**
+ * Constrói a URL para contato do WhatsApp garantindo o código do país 55 e a mensagem opcional codificada
+ */
+export function getWhatsappLink(phone: string, text?: string): string {
+  const digits = phone.replace(/\D/g, '');
+  // Garante obter apenas DDD + número (removendo 55 se o usuário salvou antes)
+  const cleanDigits = digits.startsWith('55') && (digits.length === 12 || digits.length === 13)
+    ? digits.slice(2)
+    : digits;
+  
+  const formattedNumber = `55${cleanDigits}`;
+  const query = text ? `?text=${encodeURIComponent(text)}` : '';
+  return `https://wa.me/${formattedNumber}${query}`;
+}
+
+/**
+ * Aplica máscara de CNPJ em tempo real ao digitar em um input de texto
+ * Ex: "00000000000100" -> "00.000.000/0001-00"
+ */
+export function maskCNPJ(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 14);
+  
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 5) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
+  if (digits.length <= 8) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5)}`;
+  if (digits.length <= 12) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8)}`;
+  return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12, 14)}`;
+}
+
+/**
+ * Valida se um link pertence especificamente a uma determinada rede social.
+ * Retorna true se vazio ou se for um link válido da rede informada.
+ */
+export function validateSocialLink(url: string, platform: 'instagram' | 'facebook' | 'youtube' | 'tiktok'): boolean {
+  const trimmed = url.trim();
+  if (!trimmed) return true; // Vazio é permitido
+  
+  try {
+    // Permite que o usuário insira apenas o nome de usuário (ex: "ialvespneus" ou "@ialvespneus")
+    if (!trimmed.includes('.') && !trimmed.includes('/')) {
+      return true;
+    }
+    const parsed = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`);
+    const hostname = parsed.hostname.toLowerCase();
+    
+    if (platform === 'instagram') {
+      return hostname.includes('instagram.com');
+    }
+    if (platform === 'facebook') {
+      return hostname.includes('facebook.com') || hostname.includes('fb.com');
+    }
+    if (platform === 'youtube') {
+      return hostname.includes('youtube.com') || hostname.includes('youtu.be');
+    }
+    if (platform === 'tiktok') {
+      return hostname.includes('tiktok.com');
+    }
+    return false;
+  } catch (e) {
+    const clean = trimmed.toLowerCase();
+    if (platform === 'instagram') return clean.includes('instagram.com');
+    if (platform === 'facebook') return clean.includes('facebook.com') || clean.includes('fb.com');
+    if (platform === 'youtube') return clean.includes('youtube.com') || clean.includes('youtu.be');
+    if (platform === 'tiktok') return clean.includes('tiktok.com');
+    return false;
+  }
 }

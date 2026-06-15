@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, getWhatsappLink } from '@/lib/utils';
 
 interface PostData {
   id: string;
@@ -111,7 +111,7 @@ export default function BlogPostDetail() {
           .from('configuracoes')
           .select('whatsapp_numero')
           .eq('id', 1)
-          .single();
+          .maybeSingle();
 
         if (configData) {
           setWhatsappNumero(configData.whatsapp_numero);
@@ -193,7 +193,7 @@ export default function BlogPostDetail() {
       msg += `\n[Indicação: ${refParceiro}]`;
     }
 
-    return `https://wa.me/${whatsappNumero}?text=${encodeURIComponent(msg)}`;
+    return getWhatsappLink(whatsappNumero, msg);
   };
 
   if (loading) {

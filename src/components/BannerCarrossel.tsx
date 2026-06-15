@@ -18,85 +18,55 @@ interface BannerCarrosselProps {
   banners: Banner[];
   heroTitulo?: string;
   heroSubtitulo?: string;
+  heroBackgroundUrl?: string;
 }
 
-// Banners Fictícios de Carga Pesada Ultra Premium caso o Supabase não possua dados cadastrados
-const BANNER_FALLBACKS: Banner[] = [
-  {
-    id: 'f1',
-    imagem_url: '/2.jpeg',
-    link_redirecionamento: '#vitrine-produtos',
-    ativo: true,
-    ordem: 1,
-    titulo_sobreposto: 'ROBUSTEZ INDUSTRIAL EXTREMA',
-    subtitulo_sobreposto: 'Pneus novos de alta performance e máxima tração para frotas pesadas. Desempenho garantido nas estradas mais severas.',
-    botao_texto: 'Ver Estoque Comercial'
-  },
-  {
-    id: 'f2',
-    imagem_url: '/3.jpeg',
-    link_redirecionamento: '#vitrine-produtos',
-    ativo: true,
-    ordem: 2,
-    titulo_sobreposto: 'DIRETO DA IMPORTADORA NO PIX',
-    subtitulo_sobreposto: 'Negociação exclusiva para frotistas e transportadoras com descontos agressivos de pagamento à vista.',
-    botao_texto: 'Falar com Consultor no WhatsApp'
-  },
-  {
-    id: 'f3',
-    imagem_url: '/2.jpeg',
-    link_redirecionamento: '#vitrine-produtos',
-    ativo: true,
-    ordem: 3,
-    titulo_sobreposto: 'INDICAÇÃO PREMIADA: GANHE PIX',
-    subtitulo_sobreposto: 'Indique motoristas ou frotistas e fature R$ 20,00 por pneu comercializado. Rápido, fácil e sem burocracia.',
-    botao_texto: 'Quero Participar da Campanha'
-  }
-];
-
-export default function BannerCarrossel({ banners, heroTitulo, heroSubtitulo }: BannerCarrosselProps) {
+export default function BannerCarrossel({ banners, heroTitulo, heroSubtitulo, heroBackgroundUrl }: BannerCarrosselProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [slidesAtivos, setSlidesAtivos] = useState<Banner[]>(banners && banners.length > 0 ? banners : BANNER_FALLBACKS);
+  const [slidesAtivos, setSlidesAtivos] = useState<Banner[]>([
+    {
+      id: 'db-hero-fallback',
+      imagem_url: heroBackgroundUrl || '',
+      link_redirecionamento: '#vitrine-produtos',
+      ativo: true,
+      ordem: 1,
+      titulo_sobreposto: heroTitulo || 'ROBUSTEZ MÁXIMA',
+      subtitulo_sobreposto: heroSubtitulo || 'Excelente relação custo-benefício em pneus comerciais de carga para rodovias federais e estaduais.',
+      botao_texto: 'Ver Estoque Comercial'
+    }
+  ]);
   const [tituloSobreposto, setTituloSobreposto] = useState(heroTitulo || 'ROBUSTEZ MÁXIMA');
   const [subtituloSobreposto, setSubtituloSobreposto] = useState(heroSubtitulo || 'Excelente relação custo-benefício em pneus comerciais de carga para rodovias federais e estaduais.');
 
-  // Sincroniza com as edições do LocalStorage se estiver rodando localmente/demo no cliente
+  // Sincroniza com as props vindas do Supabase
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const cachedBanners = localStorage.getItem('banners_demo');
-      const cachedConfigs = localStorage.getItem('configs_demo');
-
-      if (cachedBanners) {
-        try {
-          const parsed = JSON.parse(cachedBanners) as Banner[];
-          const activeOnly = parsed.filter(b => b.ativo);
-          if (activeOnly.length > 0) {
-            setSlidesAtivos(activeOnly);
-          } else {
-            setSlidesAtivos(BANNER_FALLBACKS);
-          }
-        } catch (e) {
-          console.error('Erro ao ler banners do cache local:', e);
-          setSlidesAtivos(banners && banners.length > 0 ? banners : BANNER_FALLBACKS);
-        }
-      } else {
-        setSlidesAtivos(banners && banners.length > 0 ? banners : BANNER_FALLBACKS);
-      }
-
-      if (cachedConfigs) {
-        try {
-          const parsedConf = JSON.parse(cachedConfigs);
-          if (parsedConf.hero_titulo) setTituloSobreposto(parsedConf.hero_titulo);
-          if (parsedConf.hero_subtitulo) setSubtituloSobreposto(parsedConf.hero_subtitulo);
-        } catch (e) {
-          console.error('Erro ao ler configs do cache local:', e);
-        }
-      } else {
+    if (banners && banners.length > 0) {
+      const activeOnly = banners.filter(b => b.ativo);
+      if (activeOnly.length > 0) {
+        setSlidesAtivos(activeOnly);
         if (heroTitulo) setTituloSobreposto(heroTitulo);
         if (heroSubtitulo) setSubtituloSobreposto(heroSubtitulo);
+        return;
       }
     }
-  }, [banners, heroTitulo, heroSubtitulo]);
+
+    // Fallback dinâmico sem imagens estáticas locais (usa a configuração do Hero configurada no painel)
+    setSlidesAtivos([
+      {
+        id: 'db-hero-fallback',
+        imagem_url: heroBackgroundUrl || '',
+        link_redirecionamento: '#vitrine-produtos',
+        ativo: true,
+        ordem: 1,
+        titulo_sobreposto: heroTitulo || 'ROBUSTEZ MÁXIMA',
+        subtitulo_sobreposto: heroSubtitulo || 'Excelente relação custo-benefício em pneus comerciais de carga para rodovias federais e estaduais.',
+        botao_texto: 'Ver Estoque Comercial'
+      }
+    ]);
+
+    if (heroTitulo) setTituloSobreposto(heroTitulo);
+    if (heroSubtitulo) setSubtituloSobreposto(heroSubtitulo);
+  }, [banners, heroTitulo, heroSubtitulo, heroBackgroundUrl]);
 
   // Autoplay a cada 6 segundos
   useEffect(() => {
@@ -118,7 +88,7 @@ export default function BannerCarrossel({ banners, heroTitulo, heroSubtitulo }: 
   };
 
   return (
-    <section className="relative h-[420px] sm:h-[500px] md:h-[550px] lg:h-[620px] w-full overflow-hidden border-b border-gray-800 bg-black">
+    <section className="relative h-[340px] sm:h-[400px] md:h-[450px] lg:h-[480px] w-full overflow-hidden border-b border-gray-800 bg-zinc-950">
       
       {/* Container dos Slides */}
       <div className="relative w-full h-full">
@@ -134,23 +104,26 @@ export default function BannerCarrossel({ banners, heroTitulo, heroSubtitulo }: 
             >
               {/* Imagem de Fundo do Banner com Next.js Image fill e priority */}
               <div className="relative w-full h-full">
-                <Image
-                  src={banner.imagem_url}
-                  alt={`Banner Promocional ${index + 1}`}
-                  fill
-                  priority={index === 0}
-                  sizes="(max-width: 768px) 100vw, 100vw"
-                  className="object-cover transition-transform duration-10000 scale-105"
-                />
+                {banner.imagem_url && (
+                  <Image
+                    src={banner.imagem_url}
+                    alt={`Banner Promocional ${index + 1}`}
+                    fill
+                    priority={index === 0}
+                    unoptimized
+                    sizes="(max-width: 768px) 100vw, 100vw"
+                    className="object-cover transition-transform duration-10000 scale-105"
+                  />
+                )}
                 
                 {/* Overlay Premium de Degradê Radial e Linear */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/35 to-black/20 z-10"></div>
                 <div className="absolute inset-0 bg-black/40 z-10"></div>
-
+ 
                 {/* Conteúdo do Banner (Letreiro Industrial Sobreposto Premium) */}
                 <div className="absolute inset-0 z-20 flex items-center">
                   <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-                    <div className="max-w-3xl space-y-5 text-left bg-black/40 border border-white/5 backdrop-blur-md p-6 sm:p-10 shadow-2xl relative overflow-hidden">
+                    <div className="max-w-3xl space-y-4 text-left bg-black/40 border border-white/5 backdrop-blur-md p-5 sm:p-8 shadow-2xl relative overflow-hidden">
                       {/* Borda Decorativa Vermelha Industrial lateral */}
                       <div className="absolute top-0 left-0 w-1.5 h-full bg-[#DC2626]"></div>
                       

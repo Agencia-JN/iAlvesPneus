@@ -5,7 +5,7 @@
  * @param file Arquivo original vindo do input type="file"
  * @param quality Qualidade da compressão WebP (0.0 a 1.0)
  */
-export function compressImageToWebp(file: File, quality = 0.82): Promise<Blob> {
+export function compressImageToWebp(file: File, quality = 0.82, maxWidth = 800): Promise<Blob> {
   return new Promise((resolve, reject) => {
     // Validação inicial do tipo de arquivo
     if (!file.type.startsWith('image/')) {
@@ -20,9 +20,8 @@ export function compressImageToWebp(file: File, quality = 0.82): Promise<Blob> {
         const canvas = document.createElement('canvas');
         let width = img.width;
         let height = img.height;
-        const maxWidth = 800;
 
-        // Redimensiona proporcionalmente mantendo a proporção se exceder 800px
+        // Redimensiona proporcionalmente mantendo a proporção se exceder o limite
         if (width > maxWidth) {
           height = Math.round((height * maxWidth) / width);
           width = maxWidth;

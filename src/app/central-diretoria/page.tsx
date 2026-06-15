@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { maskCurrency, maskWhatsapp, sanitizeWhatsapp, parseCurrencyInput, formatCurrency } from '@/lib/utils';
+import { maskCurrency, maskWhatsapp, sanitizeWhatsapp, parseCurrencyInput, formatCurrency, maskCNPJ, validateSocialLink } from '@/lib/utils';
 import { compressImageToWebp } from '@/lib/image-compressor';
 import { Pneu as TypePneu } from '@/components/Vitrine';
 import { Banner } from '@/components/BannerCarrossel';
@@ -17,24 +17,45 @@ interface LoginAudit {
   status: 'sucesso' | 'tentativa_bloqueada';
 }
 
+interface HeaderConfig {
+  logo_url: string;
+  aviso_topo: string;
+  aviso_ativo: boolean;
+}
+
+interface HeroConfig {
+  titulo: string;
+  subtitulo: string;
+  background_url: string;
+}
+
+interface FooterConfig {
+  texto_rodape: string;
+  cnpj: string;
+  direitos_reservados: string;
+  links_sociais: {
+    instagram: string;
+    facebook: string;
+    youtube: string;
+    tiktok: string;
+  };
+}
+
+interface FeaturesConfig {
+  afiliado_ativo: boolean;
+  frete_ativo: boolean;
+  blog_ia_ativo: boolean;
+}
+
 interface Configuracoes {
   whatsapp_numero: string;
   gemini_api_key: string;
   groq_api_key: string;
-  campanha_afiliados_ativa: boolean;
-  imagem_fallback_url: string;
   horarios_postagem: string[];
-  hero_titulo?: string;
-  hero_subtitulo?: string;
-  instagram_url?: string;
-  facebook_url?: string;
-  youtube_url?: string;
-  tiktok_url?: string;
-  texto_rodape?: string;
-  aviso_topo_frete?: string;
-  aviso_topo_frete_ativo?: boolean;
-  cnpj?: string;
-  direitos_reservados?: string;
+  header_config?: HeaderConfig;
+  hero_config?: HeroConfig;
+  footer_config?: FooterConfig;
+  features_config?: FeaturesConfig;
 }
 
 interface Afiliado {
@@ -44,41 +65,107 @@ interface Afiliado {
   ativo: boolean;
 }
 
+interface AfiliadoLog {
+  id?: string;
+  afiliado_id: string;
+  evento: 'clique_link' | 'clique_whatsapp';
+}
+
+interface AdminUser {
+  id?: string;
+  email: string;
+  role: 'SUPER_ADMIN' | 'ADMIN';
+  status?: 'ATIVO' | 'BLOQUEADO' | 'PENDENTE';
+}
+
+interface ActivityLog {
+  id: string;
+  usuario: string;
+  acao: string;
+  descricao: string;
+  created_at: string;
+}
+
 export default function CentralDiretoria() {
   const router = useRouter();
 
   // Estados de carregamento e autenticação
   const [supabaseActive, setSupabaseActive] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
-  const [isDemo, setIsDemo] = useState(false);
+  const [authMsg, setAuthMsg] = useState<string | null>(null);
+
 
   // Estados de dados da Diretoria
-  const [activeTab, setActiveTab] = useState<'pneus' | 'banners' | 'configuracoes' | 'afiliados' | 'auditoria'>('pneus');
+  const [activeTab, setActiveTab] = useState<'pneus' | 'banners' | 'configuracoes' | 'afiliados' | 'auditoria' | 'acessos'>('pneus');
   const [pneus, setPneus] = useState<TypePneu[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [audits, setAudits] = useState<LoginAudit[]>([]);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [afiliados, setAfiliados] = useState<Afiliado[]>([]);
+  const [afiliadoLogs, setAfiliadoLogs] = useState<AfiliadoLog[]>([]);
+  const [listaAdmins, setListaAdmins] = useState<AdminUser[]>([]);
+  const [novoAdminEmail, setNovoAdminEmail] = useState('');
+
+  // Toast e Confirmação customizados
+  interface Toast {
+    id: string;
+    type: 'sucesso' | 'erro' | 'info';
+    text: string;
+  }
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
+
+  // Estados de role e controle de privilégios via banco
+  const [userRole, setUserRole] = useState<'SUPER_ADMIN' | 'ADMIN' | null>(null);
+  const isSuperAdmin = userRole === 'SUPER_ADMIN';
   
   const [configs, setConfigs] = useState<Configuracoes>({
     whatsapp_numero: '(11) 99999-9999',
     gemini_api_key: '',
     groq_api_key: '',
-    campanha_afiliados_ativa: false,
-    imagem_fallback_url: 'https://placehold.co/800x600/0B0B0C/white?text=iAlves+Pneus',
     horarios_postagem: ['08:00', '14:00', '20:00'],
-    hero_titulo: 'ROBUSTEZ EXTREMA',
-    hero_subtitulo: 'Fornecimento direto de pneus novos de alta durabilidade e máxima tração.',
-    instagram_url: 'https://instagram.com/ialvespneus',
-    facebook_url: 'https://facebook.com/ialvespneus',
-    youtube_url: '',
-    tiktok_url: '',
-    texto_rodape: 'Valores anunciados sujeitos a alteração sem aviso prévio. Imagens meramente ilustrativas de catálogo.',
-    aviso_topo_frete: '🔥 OFERTA DE INAUGURAÇÃO: FRETE GRÁTIS PARA COMPRAS ACIMA DE 4 PNEUS!',
-    aviso_topo_frete_ativo: true,
-    cnpj: '00.000.000/0001-00',
-    direitos_reservados: 'iAlves Pneus'
+    header_config: {
+      logo_url: '/logoiAlves.png',
+      aviso_topo: '🔥 OFERTA DE INAUGURAÇÃO: FRETE GRÁTIS PARA COMPRAS ACIMA DE 4 PNEUS!',
+      aviso_ativo: true,
+    },
+    hero_config: {
+      titulo: 'ROBUSTEZ EXTREMA',
+      subtitulo: 'Fornecimento direto de pneus novos de alta durabilidade e máxima tração. Desempenho profissional projetado para frotas de caminhões e implementos rodoviários. Preço à vista imbatível.',
+      background_url: '',
+    },
+    footer_config: {
+      texto_rodape: '',
+      cnpj: '',
+      direitos_reservados: '',
+      links_sociais: {
+        instagram: '',
+        facebook: '',
+        youtube: '',
+        tiktok: '',
+      },
+    },
+    features_config: {
+      afiliado_ativo: false,
+      frete_ativo: true,
+      blog_ia_ativo: false,
+    },
+  });
+
+  const [socialErrors, setSocialErrors] = useState({
+    instagram: '',
+    facebook: '',
+    youtube: '',
+    tiktok: '',
+    cnpj: '',
   });
 
   // Estados de Modais e CRUD (Pneus)
@@ -121,84 +208,225 @@ export default function CentralDiretoria() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bannerFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Mapeia chaves reais configuradas
+  // ─── Fluxo de Autenticação ────────────────────────────────────────────────
+  // onAuthStateChange é a ÚNICA fonte da verdade para o estado da sessão.
+  // Isso evita o flash da tela de login durante redirects do Google OAuth:
+  // o authLoading permanece true até que o primeiro evento de auth seja disparado.
   useEffect(() => {
     const isConfigured = isSupabaseConfigured();
     setSupabaseActive(isConfigured);
-    
+
     if (!isConfigured) {
-      setLoading(false);
-    } else {
-      checkAuth();
+      setAuthLoading(false);
+      return;
+    }
+
+    // Force loading to false after 2 seconds to prevent infinite load if DB hangs or fails
+    const timer = setTimeout(() => {
+      console.log('[Auth Debug] Tempo limite de 2 segundos atingido. Forçando loading para false.');
+      setAuthLoading(false);
+    }, 2000);
+
+    // Registra o listener ANTES de qualquer chamada getSession()
+    // para garantir que nenhum evento seja perdido (incluindo INITIAL_SESSION)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event: string, session: any) => {
+        console.log('[onAuthStateChange] Auth event:', event, session?.user?.email);
+
+        if (session?.user) {
+          // Sessão detectada: verifica se o e-mail está na tabela administradores
+          const isNewLogin = event === 'SIGNED_IN';
+          await checkAuth(isNewLogin);
+          clearTimeout(timer);
+        } else if (event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
+          // INITIAL_SESSION sem sessão = usuário realmente não está logado
+          // SIGNED_OUT = logout explícito
+          setUserEmail(null);
+          setAuthorized(false);
+          setUserRole(null);
+          setAuthLoading(false);
+          clearTimeout(timer);
+        }
+        // Eventos como TOKEN_REFRESHED, USER_UPDATED etc. sem sessão são ignorados
+      }
+    );
+
+    return () => {
+      subscription?.unsubscribe();
+      clearTimeout(timer);
+    };
+  }, []);
+
+  // Recupera a aba ativa do localStorage no client-side para evitar perda no F5
+  useEffect(() => {
+    const savedTab = localStorage.getItem('admin_active_tab');
+    if (savedTab) {
+      const validTabs = ['pneus', 'banners', 'configuracoes', 'afiliados', 'auditoria', 'acessos'];
+      if (validTabs.includes(savedTab)) {
+        setActiveTab(savedTab as any);
+      }
     }
   }, []);
 
-  // Sincroniza estados modificados no Modo Demo diretamente no localStorage
-  useEffect(() => {
-    if (isDemo && typeof window !== 'undefined' && pneus.length > 0) {
-      localStorage.setItem('pneus_demo', JSON.stringify(pneus));
-    }
-  }, [pneus, isDemo]);
+  const changeTab = (tab: 'pneus' | 'banners' | 'configuracoes' | 'afiliados' | 'auditoria' | 'acessos') => {
+    setActiveTab(tab);
+    localStorage.setItem('admin_active_tab', tab);
+  };
 
-  useEffect(() => {
-    if (isDemo && typeof window !== 'undefined' && banners.length > 0) {
-      localStorage.setItem('banners_demo', JSON.stringify(banners));
-    }
-  }, [banners, isDemo]);
+  const showToast = (text: string, type: 'sucesso' | 'erro' | 'info' = 'sucesso') => {
+    const id = Math.random().toString(36).substring(7);
+    setToasts(prev => [...prev, { id, type, text }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4000);
+  };
 
-  useEffect(() => {
-    if (isDemo && typeof window !== 'undefined' && afiliados.length > 0) {
-      localStorage.setItem('afiliados_demo', JSON.stringify(afiliados));
-    }
-  }, [afiliados, isDemo]);
+  const askConfirmation = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmDialog({
+      isOpen: true,
+      title,
+      message,
+      onConfirm: () => {
+        onConfirm();
+        setConfirmDialog(null);
+      }
+    });
+  };
 
-  // 1. Fluxo de Autenticação Rígido com Google OAuth + Auditoria
-  const checkAuth = async () => {
+  const logActivity = async (acao: string, descricao: string) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        setLoading(false);
-        return;
-      }
-
-      const email = session.user?.email;
+      let email = userEmail;
       if (!email) {
-        handleLogout();
+        const { data: { session } } = await supabase.auth.getSession();
+        email = session?.user?.email || null;
+      }
+      if (!email) return;
+
+      await supabase.from('activity_logs').insert({
+        usuario: email,
+        acao,
+        descricao
+      });
+
+      // Recarrega logs em segundo plano
+      const { data: activityLogsData } = await supabase.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(40);
+      if (activityLogsData) setActivityLogs(activityLogsData);
+    } catch (e) {
+      console.warn('[logActivity] Falha ao registrar atividade (tabela pode não ter sido criada):', e);
+    }
+  };
+
+  // 1. Verificação de Admin — chamada apenas após onAuthStateChange confirmar sessão ativa
+  // Nunca chama getSession() diretamente; recebe a sessão já confirmada pelo listener.
+  const checkAuth = async (isNewLogin: boolean = false) => {
+    try {
+      setAuthMsg(null);
+      // Sessão já confirmada pelo onAuthStateChange — busca e-mail direto da sessão ativa
+      const { data: { session } } = await supabase.auth.getSession();
+
+      // Guarda de segurança: se a sessão sumiu entre o evento e esta chamada, libera o loading
+      if (!session?.user?.email) {
+        console.log('[checkAuth Debug] Sessão nula ou e-mail ausente. Acesso negado.');
+        setAuthorized(false);
+        setUserRole(null);
+        setAuthLoading(false);
         return;
       }
 
+      const email = session.user.email;
       setUserEmail(email);
 
-      // Consulta se o e-mail consta na lista autorizada
-      const { data: allowedUser, error: allowedError } = await supabase
-        .from('allowed_users')
-        .select('*')
+      // Consulta se o e-mail consta na tabela de administradores autorizados
+      const { data: adminUser, error: adminError } = await supabase
+        .from('administradores')
+        .select('email, role, status')
         .eq('email', email)
-        .single();
+        .maybeSingle();
 
-      if (allowedError || !allowedUser) {
-        // Bloqueio Rígido: Registra tentativa suspeita
-        await supabase.from('login_audits').insert({
-          email: email,
-          status: 'tentativa_bloqueada',
-        });
-        
+      console.log('[checkAuth Debug] Iniciando validação para e-mail:', email);
+      console.log('[checkAuth Debug] Registro retornado do banco:', adminUser);
+
+      const isPrincipalAdmin = email === 'nilson.brites@gmail.com';
+
+      if (adminError) {
+        console.error('[checkAuth Debug] Erro retornado pelo banco ao buscar administrador (ignorado):', adminError);
+        if (isPrincipalAdmin) {
+          console.log('[checkAuth Debug] Acesso provisório liberado devido a erro de banco para o administrador principal. Papel assumido: SUPER_ADMIN');
+          if (isNewLogin) {
+            await supabase.from('login_audits').insert({ email, status: 'sucesso' })
+              .then(() => {}).catch(() => {});
+          }
+          setUserRole('SUPER_ADMIN');
+          setAuthorized(true);
+          loadDatabaseData();
+        } else {
+          console.log('[checkAuth Debug] Acesso negado devido a erro de banco para usuário comum:', email);
+          await supabase.auth.signOut();
+          setUserRole(null);
+          setAuthorized(false);
+          setAuthMsg('Erro ao verificar permissões de acesso. Por favor, fale com a diretoria para liberar seu acesso via painel administrativo.');
+        }
+        return;
+      }
+
+      if (!adminUser) {
+        console.log('[checkAuth Debug] E-mail não localizado na tabela administradores. Realizando auto-cadastro como PENDENTE.');
+        const { error: insertError } = await supabase
+          .from('administradores')
+          .insert({ email, role: 'ADMIN', status: 'PENDENTE' });
+
+        if (insertError) {
+          const isConflict = insertError.code === '23505' || 
+                             String(insertError.message).includes('duplicate') || 
+                             String(insertError.status) === '409';
+          if (isConflict) {
+            console.log('[checkAuth Debug] Usuário já cadastrado anteriormente (conflito 409/23505). Acesso permanece pendente de aprovação.');
+          } else {
+            console.error('[checkAuth Debug] Falha ao auto-cadastrar usuário pendente:', insertError);
+          }
+        }
+
+        await supabase.from('login_audits').insert({ email, status: 'tentativa_bloqueada' })
+          .then(() => {}).catch(() => {});
         await supabase.auth.signOut();
-        router.push('/central-diretoria/bloqueado');
+        
+        setUserRole(null);
+        setAuthorized(false);
+        setAuthMsg('Por favor, fale com a diretoria para liberar seu acesso via painel administrativo.');
+        return;
+      }
+
+      const status = adminUser?.status || 'PENDENTE';
+
+      if (status !== 'ATIVO') {
+        console.log('[checkAuth Debug] E-mail encontrado, mas status não é ATIVO. Status:', status);
+        await supabase.from('login_audits').insert({ email, status: 'tentativa_bloqueada' })
+          .then(() => {}).catch(() => {});
+        await supabase.auth.signOut();
+
+        setUserRole(null);
+        setAuthorized(false);
+        if (status === 'BLOQUEADO') {
+          setAuthMsg('Seu acesso está bloqueado. Fale com a diretoria.');
+        } else {
+          setAuthMsg('Por favor, fale com a diretoria para liberar seu acesso via painel administrativo.');
+        }
       } else {
-        // Acesso Permitido: Registra auditoria de sucesso
-        await supabase.from('login_audits').insert({
-          email: email,
-          status: 'sucesso',
-        });
+        const resolvedRole = adminUser?.role || (isPrincipalAdmin ? 'SUPER_ADMIN' : 'ADMIN');
+        console.log('[checkAuth Debug] Acesso autorizado. Papel resolvido para o usuário:', resolvedRole);
+        // Acesso Permitido: registra auditoria de sucesso e libera o painel APENAS se for um novo login
+        if (isNewLogin) {
+          await supabase.from('login_audits').insert({ email, status: 'sucesso' })
+            .then(() => {}).catch(() => {});
+        }
+        setUserRole(resolvedRole as 'SUPER_ADMIN' | 'ADMIN');
         setAuthorized(true);
         loadDatabaseData();
       }
     } catch (e) {
-      console.error('Falha de verificação de segurança:', e);
+      console.error('[checkAuth] Falha de verificação de segurança:', e);
     } finally {
-      setLoading(false);
+      setAuthLoading(false);
     }
   };
 
@@ -215,126 +443,27 @@ export default function CentralDiretoria() {
     });
   };
 
-  const handleDemoMode = () => {
-    setIsDemo(true);
-    setAuthorized(true);
-    setUserEmail('diretoria.demonstracao@ialves.com');
-    loadMockData();
-  };
 
-  const loadMockData = () => {
-    let mockPneus: TypePneu[] = [
-      {
-        id: '1',
-        nome: 'XBRI FORZA PLUS F1',
-        marca: 'XBRI',
-        categoria: 'Borrachudo',
-        medida: '295/80 R22.5',
-        largura_mm: 295,
-        perfil_proporcao: 80,
-        aro_polegadas: '22.5',
-        sulco_mm: 20,
-        largura_cm: '26 cm',
-        preco_vista: 1810.00,
-        imagem_url: '/pneu_borrachudo.png',
-        posicao_destaque: 10,
-      },
-      {
-        id: '2',
-        nome: 'SUPERCARGO',
-        marca: 'SUPERCARGO',
-        categoria: 'Liso',
-        medida: '295/80 R22.5',
-        largura_mm: 295,
-        perfil_proporcao: 80,
-        aro_polegadas: '22.5',
-        sulco_mm: 15,
-        largura_cm: '23 cm',
-        preco_vista: 1380.00,
-        imagem_url: '/pneu_liso.png',
-        posicao_destaque: 5,
-      }
-    ];
 
-    let mockBanners: Banner[] = [
-      {
-        id: '1',
-        imagem_url: '/2.jpeg',
-        link_redirecionamento: '#vitrine-produtos',
-        ativo: true,
-        ordem: 1,
-        titulo_sobreposto: 'ROBUSTEZ INDUSTRIAL EXTREMA',
-        subtitulo_sobreposto: 'Pneus novos de alta performance e máxima tração para frotas pesadas.',
-        botao_texto: 'Ver Estoque Comercial'
-      },
-      {
-        id: '2',
-        imagem_url: '/3.jpeg',
-        link_redirecionamento: '#vitrine-produtos',
-        ativo: true,
-        ordem: 2,
-        titulo_sobreposto: 'DESCONTOS AGRESSIVOS NO PIX',
-        subtitulo_sobreposto: 'Parcerias diretas para transportadoras e grandes frotistas.',
-        botao_texto: 'Cotar WhatsApp'
-      }
-    ];
 
-    let mockAudits: LoginAudit[] = [
-      { id: '1', email: 'nilson.brites@gmail.com', attempted_at: new Date().toISOString(), status: 'sucesso' },
-      { id: '2', email: 'invasor.desconhecido@yahoo.com', attempted_at: new Date().toISOString(), status: 'tentativa_bloqueada' }
-    ];
-
-    let mockAfiliados: Afiliado[] = [
-      { id: 'a1', nome_parceiro: 'Marcos Caminhoneiro', codigo_ref: 'marcos20', ativo: true },
-      { id: 'a2', nome_parceiro: 'Posto de Molas Rota Leste', codigo_ref: 'rotaleste', ativo: true }
-    ];
-
-    if (typeof window !== 'undefined') {
-      const cachedPneus = localStorage.getItem('pneus_demo');
-      const cachedBanners = localStorage.getItem('banners_demo');
-      const cachedConfigs = localStorage.getItem('configs_demo');
-      const cachedAfiliados = localStorage.getItem('afiliados_demo');
-
-      if (cachedPneus) {
-        try { mockPneus = JSON.parse(cachedPneus); } catch (e) { console.error(e); }
-      } else {
-        localStorage.setItem('pneus_demo', JSON.stringify(mockPneus));
-      }
-
-      if (cachedBanners) {
-        try { mockBanners = JSON.parse(cachedBanners); } catch (e) { console.error(e); }
-      } else {
-        localStorage.setItem('banners_demo', JSON.stringify(mockBanners));
-      }
-
-      if (cachedAfiliados) {
-        try { mockAfiliados = JSON.parse(cachedAfiliados); } catch (e) { console.error(e); }
-      } else {
-        localStorage.setItem('afiliados_demo', JSON.stringify(mockAfiliados));
-      }
-
-      if (cachedConfigs) {
-        try {
-          const conf = JSON.parse(cachedConfigs);
-          setConfigs(conf);
-        } catch (e) { console.error(e); }
-      } else {
-        localStorage.setItem('configs_demo', JSON.stringify(configs));
-      }
-    }
-
-    setPneus(mockPneus);
-    setBanners(mockBanners);
-    setAudits(mockAudits);
-    setAfiliados(mockAfiliados);
-    setLoading(false);
-  };
 
   const loadDatabaseData = async () => {
     try {
+      const results = await Promise.allSettled([
+        supabase.from('pneus').select('*').order('posicao_destaque', { ascending: false }),
+        supabase.from('banners').select('*').order('ordem', { ascending: true }),
+        supabase.from('login_audits').select('*').order('attempted_at', { ascending: false }).limit(20),
+        supabase.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(40),
+        supabase.from('afiliados').select('*').order('nome_parceiro', { ascending: true }),
+        supabase.from('afiliado_logs').select('afiliado_id, evento'),
+        supabase.from('configuracoes').select('*').eq('id', 1).maybeSingle(),
+        supabase.from('administradores').select('id, email, role, status')
+      ]);
+
       // 1. Pneus
-      const { data: pneusData } = await supabase.from('pneus').select('*').order('posicao_destaque', { ascending: false });
-      if (pneusData) {
+      const pneusRes = results[0];
+      if (pneusRes.status === 'fulfilled' && pneusRes.value.data) {
+        const pneusData = pneusRes.value.data;
         setPneus(pneusData.map((p: any) => ({
           ...p,
           largura_mm: p.largura_mm ? Number(p.largura_mm) : 295,
@@ -343,44 +472,89 @@ export default function CentralDiretoria() {
           sulco_mm: Number(p.sulco_mm),
           preco_vista: Number(p.preco_vista),
         })));
+      } else if (pneusRes.status === 'rejected') {
+        console.error('Erro ao carregar pneus:', pneusRes.reason);
       }
 
       // 2. Banners
-      const { data: bannersData } = await supabase.from('banners').select('*').order('ordem', { ascending: true });
-      if (bannersData) {
-        setBanners(bannersData);
+      const bannersRes = results[1];
+      if (bannersRes.status === 'fulfilled' && bannersRes.value.data) {
+        setBanners(bannersRes.value.data);
+      } else if (bannersRes.status === 'rejected') {
+        console.error('Erro ao carregar banners:', bannersRes.reason);
       }
-      
+
       // 3. Auditoria
-      const { data: auditsData } = await supabase.from('login_audits').select('*').order('attempted_at', { ascending: false }).limit(20);
-      if (auditsData) setAudits(auditsData);
+      const auditsRes = results[2];
+      if (auditsRes.status === 'fulfilled' && auditsRes.value.data) {
+        setAudits(auditsRes.value.data);
+      }
+
+      // 3b. Logs de Alterações (Atividades)
+      const activityRes = results[3];
+      if (activityRes.status === 'fulfilled' && activityRes.value.data) {
+        setActivityLogs(activityRes.value.data);
+      }
 
       // 4. Afiliados
-      const { data: afiliadosData } = await supabase.from('afiliados').select('*').order('nome_parceiro', { ascending: true });
-      if (afiliadosData) setAfiliados(afiliadosData);
+      const afiliadosRes = results[4];
+      if (afiliadosRes.status === 'fulfilled' && afiliadosRes.value.data) {
+        setAfiliados(afiliadosRes.value.data);
+      }
+
+      // 4b. Logs de Afiliados
+      const afiliadoLogsRes = results[5];
+      if (afiliadoLogsRes.status === 'fulfilled' && afiliadoLogsRes.value.data) {
+        setAfiliadoLogs(afiliadoLogsRes.value.data as AfiliadoLog[]);
+      }
 
       // 5. Configurações
-      const { data: configData } = await supabase.from('configuracoes').select('*').eq('id', 1).single();
-      if (configData) {
+      const configRes = results[6];
+      if (configRes.status === 'fulfilled' && configRes.value.data) {
+        const configData = configRes.value.data;
         setConfigs({
-          whatsapp_numero: maskWhatsapp(configData.whatsapp_numero),
+          whatsapp_numero: maskWhatsapp(configData.whatsapp_numero || ''),
           gemini_api_key: configData.gemini_api_key || '',
           groq_api_key: configData.groq_api_key || '',
-          campanha_afiliados_ativa: configData.campanha_afiliados_ativa,
-          imagem_fallback_url: configData.imagem_fallback_url,
           horarios_postagem: configData.horarios_postagem || [],
-          hero_titulo: configData.hero_titulo || 'ROBUSTEZ EXTREMA',
-          hero_subtitulo: configData.hero_subtitulo || '',
-          instagram_url: configData.instagram_url || '',
-          facebook_url: configData.facebook_url || '',
-          youtube_url: configData.youtube_url || '',
-          tiktok_url: configData.tiktok_url || '',
-          texto_rodape: configData.texto_rodape || '',
-          aviso_topo_frete: configData.aviso_topo_frete || '',
-          aviso_topo_frete_ativo: configData.aviso_topo_frete_ativo !== undefined ? configData.aviso_topo_frete_ativo : true,
-          cnpj: configData.cnpj || '',
-          direitos_reservados: configData.direitos_reservados || '',
+          header_config: {
+            logo_url: configData.header_config?.logo_url || '/logoiAlves.png',
+            aviso_topo: configData.header_config?.aviso_topo || '🔥 OFERTA DE INAUGURAÇÃO: FRETE GRÁTIS PARA COMPRAS ACIMA DE 4 PNEUS!',
+            aviso_ativo: configData.header_config?.aviso_ativo !== false,
+          },
+          hero_config: {
+            titulo: configData.hero_config?.titulo || 'ROBUSTEZ EXTREMA',
+            subtitulo: configData.hero_config?.subtitulo || 'Fornecimento direto de pneus novos de alta durabilidade e máxima tração. Desempenho profissional projetado para frotas de caminhões e implementos rodoviários. Preço à vista imbatível.',
+            background_url: configData.hero_config?.background_url || '',
+          },
+          footer_config: {
+            texto_rodape: configData.footer_config?.texto_rodape || '',
+            cnpj: maskCNPJ(configData.footer_config?.cnpj || ''),
+            direitos_reservados: configData.footer_config?.direitos_reservados !== undefined ? configData.footer_config.direitos_reservados : 'iAlves Pneus',
+            links_sociais: {
+              instagram: configData.footer_config?.links_sociais?.instagram || '',
+              facebook: configData.footer_config?.links_sociais?.facebook || '',
+              youtube: configData.footer_config?.links_sociais?.youtube || '',
+              tiktok: configData.footer_config?.links_sociais?.tiktok || '',
+            },
+          },
+          features_config: {
+            afiliado_ativo: !!configData.features_config?.afiliado_ativo,
+            frete_ativo: configData.features_config?.frete_ativo !== false,
+            blog_ia_ativo: !!configData.features_config?.blog_ia_ativo,
+          },
         });
+      }
+
+      // 6. Administradores
+      const adminsRes = results[7];
+      if (adminsRes.status === 'fulfilled' && adminsRes.value.data) {
+        setListaAdmins(adminsRes.value.data.map((a: any) => ({
+          id: a.id,
+          email: a.email,
+          role: a.role || 'ADMIN',
+          status: a.status
+        })));
       }
     } catch (e) {
       console.error('Erro ao carregar dados do Supabase:', e);
@@ -393,7 +567,6 @@ export default function CentralDiretoria() {
     }
     setUserEmail(null);
     setAuthorized(false);
-    setIsDemo(false);
   };
 
   // 2. Manipulação de Inputs de Formulário
@@ -405,6 +578,123 @@ export default function CentralDiretoria() {
     setConfigs({ ...configs, whatsapp_numero: maskWhatsapp(e.target.value) });
   };
 
+  const handleCNPJBlur = (value: string) => {
+    const raw = value.replace(/\D/g, '');
+    if (raw && raw.length !== 14) {
+      setSocialErrors(prev => ({ ...prev, cnpj: 'O CNPJ deve conter exatamente 14 números.' }));
+    } else {
+      setSocialErrors(prev => ({ ...prev, cnpj: '' }));
+    }
+  };
+
+  const handleSocialBlur = (platform: 'instagram' | 'facebook' | 'youtube' | 'tiktok', value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      setSocialErrors(prev => ({ ...prev, [platform]: '' }));
+      return;
+    }
+
+    let finalUrl = trimmed;
+    // Auto-convert handles/usernames if they don't contain slashes or dots
+    if (!trimmed.includes('.') && !trimmed.includes('/')) {
+      const handle = trimmed.startsWith('@') ? trimmed.slice(1) : trimmed;
+      if (platform === 'instagram') finalUrl = `https://instagram.com/${handle}`;
+      if (platform === 'facebook') finalUrl = `https://facebook.com/${handle}`;
+      if (platform === 'youtube') finalUrl = `https://youtube.com/@${handle}`;
+      if (platform === 'tiktok') finalUrl = `https://tiktok.com/@${handle}`;
+    } else if (!trimmed.startsWith('http')) {
+      finalUrl = `https://${trimmed}`;
+    }
+
+    const isValid = validateSocialLink(finalUrl, platform);
+    
+    setConfigs(prev => ({
+      ...prev,
+      footer_config: {
+        ...prev.footer_config!,
+        links_sociais: {
+          ...prev.footer_config!.links_sociais,
+          [platform]: finalUrl
+        }
+      }
+    }));
+
+    setSocialErrors(prev => ({
+      ...prev,
+      [platform]: isValid ? '' : `Por favor, insira um link válido do ${platform.charAt(0).toUpperCase() + platform.slice(1)}.`
+    }));
+  };
+
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!isSupabaseConfigured()) {
+      showToast('O Supabase não está configurado para realizar uploads.', 'erro');
+      return;
+    }
+
+    setUploadingLogo(true);
+    try {
+      const fileExt = file.name.split('.').pop() || 'png';
+      const fileName = `logo_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `logo/${fileName}`;
+
+      // Exclui o logo antigo se ele existia no bucket 'banners' (subpasta logo/)
+      const oldLogoUrl = configs.header_config?.logo_url;
+      if (oldLogoUrl && oldLogoUrl.includes('/banners/logo/')) {
+        const parts = oldLogoUrl.split('/banners/');
+        if (parts.length > 1) {
+          const oldPath = parts[1].split('?')[0]; // Remove query string (?v=...)
+          await supabase.storage.from('banners').remove([oldPath]);
+        }
+      }
+
+      // Faz o upload para o bucket 'banners' (subpasta logo/)
+      const { error: uploadError } = await supabase.storage
+        .from('banners')
+        .upload(filePath, file, { cacheControl: '3600', upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Obtém a URL pública do novo logotipo
+      const { data: publicUrlData } = supabase.storage.from('banners').getPublicUrl(filePath);
+      const publicUrl = `${publicUrlData.publicUrl}?v=${Date.now()}`;
+
+      // Monta o novo header_config com a URL atualizada (garante todos os campos obrigatórios)
+      const currentHeader = configs.header_config;
+      const newHeaderConfig: HeaderConfig = {
+        logo_url: publicUrl,
+        aviso_topo: currentHeader?.aviso_topo ?? '',
+        aviso_ativo: currentHeader?.aviso_ativo ?? true,
+      };
+
+      // Persiste imediatamente no banco de dados (configuracoes.header_config)
+      const { error: dbError } = await supabase
+        .from('configuracoes')
+        .update({ header_config: newHeaderConfig })
+        .eq('id', 1);
+
+      if (dbError) throw new Error(`Upload OK, mas falha ao salvar no banco: ${dbError.message}`);
+
+      // Atualiza o estado local apenas após confirmação do banco
+      setConfigs((prev) => ({
+        ...prev,
+        header_config: newHeaderConfig
+      }));
+
+      await logActivity('Configurações', `Atualizou o logotipo da empresa via upload direto.`);
+      showToast('Logotipo atualizado com sucesso!');
+    } catch (err: any) {
+      console.error(err);
+      showToast(`Erro ao realizar upload do logotipo: ${err.message || err}`, 'erro');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
   // Compressão Nativa WebP (Pneu)
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -414,18 +704,27 @@ export default function CentralDiretoria() {
     setStatusMsg(null);
 
     try {
-      const compressedBlob = await compressImageToWebp(file, 0.85);
-      const compressedFile = new File([compressedBlob], `compressed_${Date.now()}.webp`, {
-        type: 'image/webp',
-      });
+      if (file.size < 300 * 1024 && (file.type === 'image/webp' || file.type === 'image/png' || file.type === 'image/jpeg')) {
+        setPneuForm({
+          ...pneuForm,
+          imagem_file: file,
+          imagem_url: URL.createObjectURL(file),
+        });
+        setStatusMsg({ type: 'sucesso', text: `Imagem carregada diretamente! (${(file.size / 1024).toFixed(1)} KB)` });
+      } else {
+        const compressedBlob = await compressImageToWebp(file, 0.85);
+        const compressedFile = new File([compressedBlob], `compressed_${Date.now()}.webp`, {
+          type: 'image/webp',
+        });
 
-      setPneuForm({
-        ...pneuForm,
-        imagem_file: compressedFile,
-        imagem_url: URL.createObjectURL(compressedBlob),
-      });
+        setPneuForm({
+          ...pneuForm,
+          imagem_file: compressedFile,
+          imagem_url: URL.createObjectURL(compressedBlob),
+        });
 
-      setStatusMsg({ type: 'sucesso', text: `Foto comprimida para WebP! (${(compressedFile.size / 1024).toFixed(1)} KB)` });
+        setStatusMsg({ type: 'sucesso', text: `Foto comprimida para WebP! (${(compressedFile.size / 1024).toFixed(1)} KB)` });
+      }
     } catch (err: any) {
       setStatusMsg({ type: 'erro', text: err.message || 'Erro ao comprimir imagem.' });
     } finally {
@@ -442,18 +741,27 @@ export default function CentralDiretoria() {
     setStatusMsg(null);
 
     try {
-      const compressedBlob = await compressImageToWebp(file, 0.85);
-      const compressedFile = new File([compressedBlob], `banner_${Date.now()}.webp`, {
-        type: 'image/webp',
-      });
+      if (file.size < 500 * 1024 && (file.type === 'image/webp' || file.type === 'image/png' || file.type === 'image/jpeg')) {
+        setBannerForm({
+          ...bannerForm,
+          imagem_file: file,
+          imagem_url: URL.createObjectURL(file),
+        });
+        setStatusMsg({ type: 'sucesso', text: `Banner carregado diretamente! (${(file.size / 1024).toFixed(1)} KB)` });
+      } else {
+        const compressedBlob = await compressImageToWebp(file, 0.85, 1920);
+        const compressedFile = new File([compressedBlob], `banner_${Date.now()}.webp`, {
+          type: 'image/webp',
+        });
 
-      setBannerForm({
-        ...bannerForm,
-        imagem_file: compressedFile,
-        imagem_url: URL.createObjectURL(compressedBlob),
-      });
+        setBannerForm({
+          ...bannerForm,
+          imagem_file: compressedFile,
+          imagem_url: URL.createObjectURL(compressedBlob),
+        });
 
-      setStatusMsg({ type: 'sucesso', text: `Banner comprimido para WebP! (${(compressedFile.size / 1024).toFixed(1)} KB)` });
+        setStatusMsg({ type: 'sucesso', text: `Banner comprimido para WebP! (${(compressedFile.size / 1024).toFixed(1)} KB)` });
+      }
     } catch (err: any) {
       setStatusMsg({ type: 'erro', text: err.message || 'Erro ao comprimir banner.' });
     } finally {
@@ -499,7 +807,15 @@ export default function CentralDiretoria() {
     try {
       let finalImageUrl = pneuForm.imagem_url || '/pneu_borrachudo.png';
 
-      if (supabaseActive && !isDemo && pneuForm.imagem_file) {
+      if (pneuForm.imagem_file) {
+        // Remove antiga se estiver editando e se for do storage
+        if (editingPneu?.imagem_url && editingPneu.imagem_url.includes('/storage/v1/object/public/pneus/')) {
+          const oldRelativePath = editingPneu.imagem_url.split('/pneus/')[1]?.split('?')[0];
+          if (oldRelativePath) {
+            await supabase.storage.from('pneus').remove([oldRelativePath]);
+          }
+        }
+
         const fileExt = 'webp';
         const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
         const filePath = `produtos/${fileName}`;
@@ -508,10 +824,12 @@ export default function CentralDiretoria() {
           .from('pneus')
           .upload(filePath, pneuForm.imagem_file);
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          throw new Error(`Falha no upload da imagem (tentando acessar o bucket 'pneus'): ${uploadError.message}. Verifique se o bucket 'pneus' existe no Supabase e se possui políticas públicas de RLS.`);
+        }
 
         const { data: publicUrlData } = supabase.storage.from('pneus').getPublicUrl(filePath);
-        finalImageUrl = publicUrlData.publicUrl;
+        finalImageUrl = `${publicUrlData.publicUrl}?v=${Date.now()}`;
       }
 
       const pneuData = {
@@ -529,66 +847,58 @@ export default function CentralDiretoria() {
         posicao_destaque: destaqueClean,
       };
 
-      if (isDemo) {
-        if (editingPneu) {
-          setPneus(pneus.map((p) => (p.id === editingPneu.id ? { ...p, ...pneuData, id: p.id, largura_cm: '24 cm' } : p)));
-        } else {
-          setPneus([...pneus, { ...pneuData, id: String(Date.now()), largura_cm: '24 cm' }]);
-        }
+      if (editingPneu) {
+        const { error } = await supabase.from('pneus').update(pneuData).eq('id', editingPneu.id);
+        if (error) throw new Error(`Erro ao atualizar pneu: ${error.message}`);
+        await logActivity('Estoque', `Atualizou o pneu "${pneuData.nome}" (${pneuData.marca}) - Medida: ${pneuData.medida}, Preço: R$ ${pneuData.preco_vista.toFixed(2)}.`);
       } else {
-        if (editingPneu) {
-          const { error } = await supabase.from('pneus').update(pneuData).eq('id', editingPneu.id);
-          if (error) throw error;
-        } else {
-          const { error } = await supabase.from('pneus').insert(pneuData);
-          if (error) throw error;
-        }
-        await loadDatabaseData();
+        const { error } = await supabase.from('pneus').insert(pneuData);
+        if (error) throw new Error(`Erro ao inserir pneu: ${error.message}`);
+        await logActivity('Estoque', `Cadastrou o pneu "${pneuData.nome}" (${pneuData.marca}) - Medida: ${pneuData.medida}, Preço: R$ ${pneuData.preco_vista.toFixed(2)}.`);
       }
-
       setShowPneuModal(false);
       setEditingPneu(null);
       resetPneuForm();
-      setStatusMsg({ type: 'sucesso', text: 'Pneu gravado com sucesso no estoque!' });
+      showToast('Pneu gravado com sucesso no estoque!');
+
+      loadDatabaseData().catch(loadErr => console.error('[savePneu] Erro ao recarregar dados:', loadErr));
     } catch (err: any) {
-      console.error(err);
-      setStatusMsg({ type: 'erro', text: 'Falha ao salvar produto no estoque real.' });
+      console.error('[savePneu] Erro:', err);
+      showToast(err.message || 'Falha ao salvar produto no estoque.', 'erro');
     } finally {
       setLoading(false);
     }
   };
 
   const deletePneu = async (id: string) => {
-    if (!confirm('Deseja realmente excluir este pneu permanentemente? Isso removerá o arquivo do Storage.')) return;
-
-    setLoading(true);
-
-    try {
-      const pneuToDelete = pneus.find((p) => p.id === id);
-
-      if (isDemo) {
-        setPneus(pneus.filter((p) => p.id !== id));
-      } else {
-        if (pneuToDelete?.imagem_url && pneuToDelete.imagem_url.includes('/storage/v1/object/public/pneus/')) {
-          const relativePath = pneuToDelete.imagem_url.split('/pneus/')[1];
-          if (relativePath) {
-            await supabase.storage.from('pneus').remove([relativePath]);
+    const pneuToDelete = pneus.find((p) => p.id === id);
+    askConfirmation(
+      'Confirmar Exclusão',
+      `Deseja realmente excluir permanentemente o pneu "${pneuToDelete?.nome || 'este pneu'}"? Isso removerá o arquivo do Storage.`,
+      async () => {
+        setLoading(true);
+        try {
+          if (pneuToDelete?.imagem_url && pneuToDelete.imagem_url.includes('/storage/v1/object/public/pneus/')) {
+            const relativePath = pneuToDelete.imagem_url.split('/pneus/')[1];
+            if (relativePath) {
+              await supabase.storage.from('pneus').remove([relativePath]);
+            }
           }
+
+          const { error } = await supabase.from('pneus').delete().eq('id', id);
+          if (error) throw new Error(`Erro ao deletar pneu: ${error.message}`);
+
+          await logActivity('Estoque', `Removeu o pneu "${pneuToDelete?.nome || id}" (${pneuToDelete?.marca || 'Desconhecida'}).`);
+          showToast('Pneu eliminado com sucesso!');
+          loadDatabaseData().catch(loadErr => console.error('[deletePneu] Erro ao recarregar dados:', loadErr));
+        } catch (err: any) {
+          console.error('[deletePneu] Erro:', err);
+          showToast(err.message || 'Erro ao remover pneu.', 'erro');
+        } finally {
+          setLoading(false);
         }
-
-        const { error } = await supabase.from('pneus').delete().eq('id', id);
-        if (error) throw error;
-
-        await loadDatabaseData();
       }
-
-      setStatusMsg({ type: 'sucesso', text: 'Pneu eliminado com sucesso!' });
-    } catch (err: any) {
-      console.error(err);
-      setStatusMsg({ type: 'erro', text: 'Erro ao remover pneu de forma sincronizada.' });
-    } finally {
-      setLoading(false);
-    }
+    );
   };
 
   // 4. CRUD de Banners Rotativos
@@ -599,19 +909,28 @@ export default function CentralDiretoria() {
     try {
       let finalImageUrl = bannerForm.imagem_url;
 
-      if (supabaseActive && !isDemo && bannerForm.imagem_file) {
+      if (bannerForm.imagem_file) {
+        // Remove antiga se estiver editando e se for do storage
+        if (editingBanner?.imagem_url && editingBanner.imagem_url.includes('/storage/v1/object/public/banners/')) {
+          const oldRelativePath = editingBanner.imagem_url.split('/banners/')[1]?.split('?')[0];
+          if (oldRelativePath) {
+            await supabase.storage.from('banners').remove([oldRelativePath]);
+          }
+        }
+
         const fileExt = 'webp';
         const fileName = `${Date.now()}_banner_${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const filePath = `banners/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
-          .from('pneus')
-          .upload(filePath, bannerForm.imagem_file);
+          .from('banners')
+          .upload(fileName, bannerForm.imagem_file, { upsert: false });
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          throw new Error(`Falha no upload da imagem (tentando acessar o bucket 'banners'): ${uploadError.message}. Verifique se o bucket 'banners' existe no Supabase e se possui políticas públicas de RLS.`);
+        }
 
-        const { data: publicUrlData } = supabase.storage.from('pneus').getPublicUrl(filePath);
-        finalImageUrl = publicUrlData.publicUrl;
+        const { data: publicUrlData } = supabase.storage.from('banners').getPublicUrl(fileName);
+        finalImageUrl = `${publicUrlData.publicUrl}?v=${Date.now()}`;
       }
 
       if (!finalImageUrl) {
@@ -627,159 +946,167 @@ export default function CentralDiretoria() {
         ordem: parseInt(bannerForm.ordem) || 0,
       };
 
-      if (isDemo) {
-        if (editingBanner) {
-          setBanners(banners.map((b) => (b.id === editingBanner.id ? { ...b, ...bannerData } : b)));
-        } else {
-          setBanners([...banners, { ...bannerData, id: String(Date.now()) }]);
-        }
+      if (editingBanner) {
+        const { error } = await supabase.from('banners').update(bannerData).eq('id', editingBanner.id);
+        if (error) throw new Error(`Erro ao atualizar banner no banco: ${error.message}`);
+        await logActivity('Banners', `Atualizou o banner rotativo (Ordem: ${bannerData.ordem}, Ativo: ${bannerData.ativo ? 'Sim' : 'Não'}).`);
       } else {
-        if (editingBanner) {
-          const { error } = await supabase.from('banners').update(bannerData).eq('id', editingBanner.id);
-          if (error) throw error;
-        } else {
-          const { error } = await supabase.from('banners').insert(bannerData);
-          if (error) throw error;
-        }
-        await loadDatabaseData();
+        const { error } = await supabase.from('banners').insert(bannerData);
+        if (error) throw new Error(`Erro ao inserir banner no banco: ${error.message}`);
+        await logActivity('Banners', `Criou novo banner rotativo (Ordem: ${bannerData.ordem}, Ativo: ${bannerData.ativo ? 'Sim' : 'Não'}).`);
       }
-
       setShowBannerModal(false);
       setEditingBanner(null);
       resetBannerForm();
-      setStatusMsg({ type: 'sucesso', text: 'Banner rotativo gravado com sucesso!' });
+      showToast('Banner rotativo gravado com sucesso!');
+
+      loadDatabaseData().catch(loadErr => console.error('[saveBanner] Erro ao recarregar dados:', loadErr));
     } catch (err: any) {
-      console.error(err);
-      setStatusMsg({ type: 'erro', text: 'Erro ao salvar banner promocional.' });
+      console.error('[saveBanner] Erro:', err);
+      showToast(err.message || 'Erro desconhecido ao salvar banner.', 'erro');
     } finally {
       setLoading(false);
     }
   };
 
   const deleteBanner = async (id: string) => {
-    if (!confirm('Excluir este banner rotativo permanentemente?')) return;
-    setLoading(true);
+    askConfirmation(
+      'Confirmar Exclusão',
+      'Excluir este banner rotativo permanentemente?',
+      async () => {
+        setLoading(true);
+        try {
+          const bannerToDelete = banners.find((b) => b.id === id);
 
-    try {
-      const bannerToDelete = banners.find((b) => b.id === id);
-
-      if (isDemo) {
-        setBanners(banners.filter((b) => b.id !== id));
-      } else {
-        if (bannerToDelete?.imagem_url && bannerToDelete.imagem_url.includes('/storage/v1/object/public/pneus/')) {
-          const relativePath = bannerToDelete.imagem_url.split('/pneus/')[1];
-          if (relativePath) {
-            await supabase.storage.from('pneus').remove([relativePath]);
+          // Remove o arquivo físico do bucket 'banners' (se foi gerado pelo storage)
+          if (bannerToDelete?.imagem_url && bannerToDelete.imagem_url.includes('/storage/v1/object/public/banners/')) {
+            const relativePath = bannerToDelete.imagem_url.split('/banners/')[1];
+            if (relativePath) {
+              await supabase.storage.from('banners').remove([relativePath]);
+            }
           }
+
+          const { error } = await supabase.from('banners').delete().eq('id', id);
+          if (error) throw new Error(`Erro ao deletar banner: ${error.message}`);
+
+          await logActivity('Banners', `Removeu o banner rotativo (ID: ${id}).`);
+          showToast('Banner rotativo deletado da base e do Storage!');
+          loadDatabaseData().catch(loadErr => console.error('[deleteBanner] Erro ao recarregar dados:', loadErr));
+        } catch (err: any) {
+          console.error('[deleteBanner] Erro:', err);
+          showToast(err.message || 'Erro ao remover banner.', 'erro');
+        } finally {
+          setLoading(false);
         }
-
-        const { error } = await supabase.from('banners').delete().eq('id', id);
-        if (error) throw error;
-
-        await loadDatabaseData();
       }
-
-      setStatusMsg({ type: 'sucesso', text: 'Banner rotativo deletado da base e do Storage!' });
-    } catch (err) {
-      console.error(err);
-      setStatusMsg({ type: 'erro', text: 'Erro ao remover banner.' });
-    } finally {
-      setLoading(false);
-    }
+    );
   };
 
   const toggleBannerStatus = async (id: string, currentStatus: boolean) => {
     setLoading(true);
     try {
-      if (isDemo) {
-        setBanners(banners.map((b) => (b.id === id ? { ...b, ativo: !currentStatus } : b)));
-      } else {
+      {
         const { error } = await supabase.from('banners').update({ ativo: !currentStatus }).eq('id', id);
         if (error) throw error;
-        await loadDatabaseData();
+        await logActivity('Banners', `Alterou status do banner ID "${id}" para ${!currentStatus ? 'ATIVO' : 'INATIVO'}.`);
       }
-      setStatusMsg({ type: 'sucesso', text: 'Status de ativação do banner alterado!' });
+      showToast('Status de ativação do banner alterado!');
+      loadDatabaseData().catch(loadErr => console.error('[toggleBannerStatus] Erro ao recarregar dados:', loadErr));
     } catch (e) {
       console.error(e);
+      showToast('Erro ao alterar status do banner.', 'erro');
     } finally {
       setLoading(false);
     }
   };
 
-  // Salvar configurações gerais (incluindo novos campos do site)
   const saveConfigs = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // 1. Verificação de integridade (RN.CONT.02)
     const numericPhone = sanitizeWhatsapp(configs.whatsapp_numero);
-    if (numericPhone.length !== 13) {
-      alert('Número deve conter 11 dígitos com DDD. Ex: (11) 99999-9999.');
+    if (numericPhone.length !== 10 && numericPhone.length !== 11) {
+      showToast('O número de WhatsApp deve conter o DDD + número (ex: 11 99999-9999).', 'erro');
       return;
+    }
+    if (!configs.hero_config?.titulo?.trim()) {
+      showToast('O título principal do Hero não pode estar vazio.', 'erro');
+      return;
+    }
+
+    // Validação de CNPJ
+    const rawCNPJ = configs.footer_config?.cnpj?.replace(/\D/g, '') || '';
+    if (rawCNPJ.length > 0 && rawCNPJ.length !== 14) {
+      showToast('O CNPJ deve conter exatamente 14 números (ex: 00.000.000/0001-00).', 'erro');
+      return;
+    }
+
+    const soc = configs.footer_config?.links_sociais;
+    if (soc) {
+      if (soc.instagram && !validateSocialLink(soc.instagram, 'instagram')) {
+        showToast('O Link do Instagram deve pertencer à rede do Instagram (ex: instagram.com/usuario).', 'erro');
+        return;
+      }
+      if (soc.facebook && !validateSocialLink(soc.facebook, 'facebook')) {
+        showToast('O Link do Facebook deve pertencer à rede do Facebook (ex: facebook.com/usuario).', 'erro');
+        return;
+      }
+      if (soc.youtube && !validateSocialLink(soc.youtube, 'youtube')) {
+        showToast('O Link do YouTube deve pertencer à rede do YouTube (ex: youtube.com/canal).', 'erro');
+        return;
+      }
+      if (soc.tiktok && !validateSocialLink(soc.tiktok, 'tiktok')) {
+        showToast('O Link do TikTok deve pertencer à rede do TikTok (ex: tiktok.com/@usuario).', 'erro');
+        return;
+      }
     }
 
     setLoading(true);
 
     try {
-      if (isDemo) {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('configs_demo', JSON.stringify(configs));
-        }
-        setStatusMsg({ type: 'sucesso', text: 'Configurações simuladas gravadas localmente!' });
-      } else {
-        // Tenta fazer o update completo com os novos campos
-        const payload: any = {
-          whatsapp_numero: numericPhone,
-          gemini_api_key: configs.gemini_api_key.trim(),
-          groq_api_key: configs.groq_api_key.trim(),
-          campanha_afiliados_ativa: configs.campanha_afiliados_ativa,
-          imagem_fallback_url: configs.imagem_fallback_url.trim(),
-          hero_titulo: configs.hero_titulo?.trim(),
-          hero_subtitulo: configs.hero_subtitulo?.trim(),
-          instagram_url: configs.instagram_url?.trim(),
-          facebook_url: configs.facebook_url?.trim(),
-          youtube_url: configs.youtube_url?.trim(),
-          tiktok_url: configs.tiktok_url?.trim(),
-          texto_rodape: configs.texto_rodape?.trim(),
-          aviso_topo_frete: configs.aviso_topo_frete?.trim(),
-          aviso_topo_frete_ativo: configs.aviso_topo_frete_ativo,
-          cnpj: configs.cnpj?.trim(),
-          direitos_reservados: configs.direitos_reservados?.trim(),
-        };
+      // 2. Validação se o ID da configuração existe no banco para evitar duplicatas (RN.CONT.01)
+      const { data: existingConfig, error: fetchError } = await supabase
+        .from('configuracoes')
+        .select('id')
+        .eq('id', 1)
+        .maybeSingle();
 
-        let { error } = await supabase.from('configuracoes').update(payload).eq('id', 1);
-        
-        // Se der erro de coluna ausente (código 42703 no PostgreSQL)
-        if (error && (error.code === '42703' || error.message?.includes('column') || error.message?.includes('does not exist'))) {
-          console.warn('Novas colunas ausentes no Supabase. Atualizando apenas campos padrão...');
-          const legacyPayload = {
-            whatsapp_numero: numericPhone,
-            gemini_api_key: configs.gemini_api_key.trim(),
-            groq_api_key: configs.groq_api_key.trim(),
-            campanha_afiliados_ativa: configs.campanha_afiliados_ativa,
-            imagem_fallback_url: configs.imagem_fallback_url.trim(),
-            hero_titulo: configs.hero_titulo?.trim(),
-            hero_subtitulo: configs.hero_subtitulo?.trim(),
-            instagram_url: configs.instagram_url?.trim(),
-            facebook_url: configs.facebook_url?.trim(),
-            texto_rodape: configs.texto_rodape?.trim(),
-            aviso_topo_frete: configs.aviso_topo_frete?.trim(),
-          };
-          const { error: retryError } = await supabase.from('configuracoes').update(legacyPayload).eq('id', 1);
-          if (retryError) throw retryError;
-          
-          setStatusMsg({ 
-            type: 'sucesso', 
-            text: 'Configurações salvas! Nota: Para pleno aproveitamento, crie as novas colunas (youtube_url, tiktok_url, cnpj, direitos_reservados, aviso_topo_frete_ativo) no seu painel do Supabase.' 
-          });
-        } else if (error) {
-          throw error;
-        } else {
-          setStatusMsg({ type: 'sucesso', text: 'Configurações globais salvas no banco Supabase!' });
-        }
-        await loadDatabaseData();
+      if (fetchError) throw fetchError;
+
+      const payload: any = {
+        whatsapp_numero: numericPhone,
+        gemini_api_key: configs.gemini_api_key.trim(),
+        groq_api_key: configs.groq_api_key.trim(),
+        header_config: configs.header_config,
+        hero_config: configs.hero_config,
+        footer_config: configs.footer_config,
+        features_config: configs.features_config,
+        horarios_postagem: configs.horarios_postagem,
+      };
+
+      let saveError;
+      if (!existingConfig) {
+        // Se não existir, insere com ID 1
+        const { error: insertError } = await supabase.from('configuracoes').insert({ id: 1, ...payload });
+        saveError = insertError;
+      } else {
+        // Se existir, atualiza o registro único
+        const { error: updateError } = await supabase.from('configuracoes').update(payload).eq('id', 1);
+        saveError = updateError;
       }
-    } catch (e) {
+
+      if (saveError) {
+        throw saveError;
+      } else {
+        showToast('Configurações globais salvas no banco Supabase!');
+      }
+
+      await logActivity('Configurações', 'Atualizou as configurações globais do site.');
+      loadDatabaseData().catch(loadErr => console.error('[saveConfigs] Erro ao recarregar dados:', loadErr));
+    } catch (e: any) {
       console.error(e);
-      setStatusMsg({ type: 'erro', text: 'Erro ao salvar configurações.' });
+      showToast(e.message || 'Erro ao salvar configurações.', 'erro');
+      alert(`Erro ao salvar configurações:\n${e.message || e.details || JSON.stringify(e)}`);
     } finally {
       setLoading(false);
     }
@@ -800,22 +1127,21 @@ export default function CentralDiretoria() {
     setLoading(true);
 
     try {
-      if (isDemo) {
-        setAfiliados([...afiliados, { id: String(Date.now()), nome_parceiro: name, codigo_ref: code, ativo: true }]);
-      } else {
+      {
         const { error } = await supabase.from('afiliados').insert({
           nome_parceiro: name,
           codigo_ref: code,
         });
         if (error) throw error;
-        await loadDatabaseData();
+        await logActivity('Afiliados', `Cadastrou o afiliado "${name}" com o cupom de desconto "${code}".`);
       }
 
       setNovoAfiliado({ nome_parceiro: '', codigo_ref: '' });
-      setStatusMsg({ type: 'sucesso', text: 'Afiliado cadastrado com sucesso!' });
+      showToast('Afiliado cadastrado com sucesso!');
+      loadDatabaseData().catch(loadErr => console.error('[addAfiliado] Erro ao recarregar dados:', loadErr));
     } catch (err: any) {
       console.error(err);
-      setStatusMsg({ type: 'erro', text: 'Código de afiliado já existente.' });
+      showToast('Código de afiliado já existente.', 'erro');
     } finally {
       setLoading(false);
     }
@@ -824,20 +1150,87 @@ export default function CentralDiretoria() {
   const toggleAfiliado = async (id: string, currentStatus: boolean) => {
     setLoading(true);
     try {
-      if (isDemo) {
-        setAfiliados(afiliados.map((a) => (a.id === id ? { ...a, ativo: !currentStatus } : a)));
-      } else {
+      {
         const { error } = await supabase.from('afiliados').update({ ativo: !currentStatus }).eq('id', id);
         if (error) throw error;
-        await loadDatabaseData();
+        const partner = afiliados.find(a => a.id === id);
+        await logActivity('Afiliados', `Alterou o status do afiliado "${partner?.nome_parceiro || id}" para ${!currentStatus ? 'ATIVO' : 'INATIVO'}.`);
       }
-      setStatusMsg({ type: 'sucesso', text: 'Status do afiliado alterado!' });
+      showToast('Status do afiliado alterado!');
+      loadDatabaseData().catch(loadErr => console.error('[toggleAfiliado] Erro ao recarregar dados:', loadErr));
     } catch (e) {
       console.error(e);
+      showToast('Erro ao alterar status do afiliado.', 'erro');
     } finally {
       setLoading(false);
     }
   };
+
+  const deleteAfiliado = async (id: string) => {
+    const partner = afiliados.find((a) => a.id === id);
+    askConfirmation(
+      'Confirmar Exclusão de Parceiro',
+      `Deseja realmente excluir permanentemente o parceiro de indicação "${partner?.nome_parceiro || 'este parceiro'}"? O código de referência deixará de pontuar.`,
+      async () => {
+        setLoading(true);
+        try {
+          const { error } = await supabase.from('afiliados').delete().eq('id', id);
+          if (error) throw error;
+
+          await logActivity('Afiliados', `Excluiu o parceiro de indicação "${partner?.nome_parceiro || id}" (código: ${partner?.codigo_ref}).`);
+          showToast('Parceiro de indicação excluído!');
+          loadDatabaseData().catch(loadErr => console.error('[deleteAfiliado] Erro ao recarregar dados:', loadErr));
+        } catch (err: any) {
+          console.error('[deleteAfiliado] Erro:', err);
+          showToast(err.message || 'Erro ao remover parceiro de indicação.', 'erro');
+        } finally {
+          setLoading(false);
+        }
+      }
+    );
+  };
+
+  const saveNivel = async (adminId: string, email: string, role: 'SUPER_ADMIN' | 'ADMIN') => {
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('administradores')
+        .update({ role })
+        .eq('id', adminId);
+      if (error) throw error;
+      
+      await logActivity('Gestão de Acesso', `Alterou o nível de acesso do administrador "${email}" para "${role}".`);
+      setListaAdmins(prev => prev.map(a => a.id === adminId ? { ...a, role } : a));
+      showToast(`Nível de ${email} atualizado para ${role}`);
+    } catch (err: any) {
+      console.error('[saveNivel] Erro:', err);
+      showToast(`Erro ao atualizar nível: ${err.message}`, 'erro');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveStatus = async (adminId: string, email: string, status: 'ATIVO' | 'BLOQUEADO' | 'PENDENTE') => {
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('administradores')
+        .update({ status })
+        .eq('id', adminId);
+      if (error) throw error;
+      
+      await logActivity('Gestão de Acesso', `Alterou o status de acesso do administrador "${email}" para "${status}".`);
+      setListaAdmins(prev => prev.map(a => a.id === adminId ? { ...a, status } : a));
+      showToast(`Status de ${email} alterado para ${status}`);
+    } catch (err: any) {
+      console.error('[saveStatus] Erro:', err);
+      showToast(`Erro ao alterar status: ${err.message}`, 'erro');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
 
   // Resets e Modais
   const resetPneuForm = () => {
@@ -900,6 +1293,11 @@ export default function CentralDiretoria() {
     setShowBannerModal(true);
   };
 
+  // Carregamento invisível (retorna null para evitar flash visual incômodo)
+  if (authLoading) {
+    return null;
+  }
+
   // Interface de Login caso não esteja autenticado
   if (!authorized) {
     return (
@@ -908,8 +1306,8 @@ export default function CentralDiretoria() {
 
         <div className="glass-panel max-w-md w-full p-8 sm:p-10 rounded-none border-t-4 border-t-[#E11D48] relative z-10 text-center space-y-8">
           <div className="space-y-2">
-            <div className="relative w-64 h-16 overflow-hidden bg-black mx-auto">
-              <Image src="/logoiAlves.png" alt="iAlves Pneus Logo" fill className="object-contain" />
+            <div className="relative w-64 h-16 flex items-center justify-center mx-auto">
+              <img src={configs.header_config?.logo_url || "/logoiAlves.png"} alt="iAlves Pneus Logo" className="h-full w-auto object-contain" />
             </div>
             <h1 className="text-xl sm:text-2xl font-black uppercase tracking-widest text-white mt-4">
               CENTRAL DA <span className="text-[#E11D48]">DIRETORIA</span>
@@ -918,40 +1316,23 @@ export default function CentralDiretoria() {
           </div>
 
           <div className="space-y-4">
-            {loading ? (
-              <div className="flex justify-center py-4">
-                <div className="w-8 h-8 border-4 border-[#E11D48] border-t-transparent rounded-full animate-spin"></div>
+            {authMsg && (
+              <div className="p-4 bg-red-950/20 border border-red-900/30 text-red-400 text-xs font-bold uppercase tracking-wider rounded-none leading-relaxed">
+                {authMsg}
               </div>
-            ) : (
-              <>
-                <button
-                  onClick={handleGoogleLogin}
-                  className="flex items-center justify-center gap-3 w-full px-6 py-4 bg-white hover:bg-gray-100 text-black font-extrabold uppercase text-xs tracking-wider transition-all duration-300 rounded-none cursor-pointer"
-                >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24">
-                    <path
-                      fill="#EA4335"
-                      d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.03-5.136 4.03-3.324 0-6.028-2.704-6.028-6.028s2.704-6.028 6.028-6.028c1.554 0 2.964.593 4.03 1.554l3.11-3.11C19.066.822 15.855 0 12.24 0 5.48 0 0 5.48 0 12.24s5.48 12.24 12.24 12.24c6.82 0 12.24-5.42 12.24-12.24 0-.74-.08-1.46-.22-2.155H12.24z"
-                    />
-                  </svg>
-                  Entrar com o Google
-                </button>
-
-                <div className="relative flex items-center justify-center py-2">
-                  <div className="absolute w-full h-[1px] bg-gray-900"></div>
-                  <span className="relative z-10 bg-[#0B0B0C] px-3 text-[10px] text-gray-600 font-bold uppercase tracking-widest">
-                    Ou teste localmente
-                  </span>
-                </div>
-
-                <button
-                  onClick={handleDemoMode}
-                  className="w-full py-3.5 border border-gray-800 hover:border-gray-600 bg-white/5 hover:bg-white/10 text-white font-extrabold uppercase text-[11px] tracking-widest transition-all duration-300 rounded-none cursor-pointer"
-                >
-                  Ativar Modo Demonstrativo
-                </button>
-              </>
             )}
+            <button
+              onClick={handleGoogleLogin}
+              className="flex items-center justify-center gap-3 w-full px-6 py-4 bg-white hover:bg-gray-100 text-black font-extrabold uppercase text-xs tracking-wider transition-all duration-300 rounded-none cursor-pointer"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <path
+                  fill="#EA4335"
+                  d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.03-5.136 4.03-3.324 0-6.028-2.704-6.028-6.028s2.704-6.028 6.028-6.028c1.554 0 2.964.593 4.03 1.554l3.11-3.11C19.066.822 15.855 0 12.24 0 5.48 0 0 5.48 0 12.24s5.48 12.24 12.24 12.24c6.82 0 12.24-5.42 12.24-12.24 0-.74-.08-1.46-.22-2.155H12.24z"
+                />
+              </svg>
+              Entrar com o Google
+            </button>
           </div>
 
           <div className="text-[10px] text-gray-600 font-bold uppercase tracking-wide leading-relaxed pt-4 border-t border-gray-950">
@@ -968,15 +1349,15 @@ export default function CentralDiretoria() {
       {/* Topbar do Administrador */}
       <header className="border-b border-gray-900 bg-black/60 backdrop-blur-md px-6 py-4 flex items-center justify-between z-40 sticky top-0">
         <div className="flex items-center gap-4">
-          <div className="relative w-44 h-11 overflow-hidden bg-black shrink-0">
-            <Image src="/logoiAlves.png" alt="iAlves Logo" fill className="object-contain" />
+          <div className="relative w-44 h-11 shrink-0 flex items-center justify-start">
+            <img src={configs.header_config?.logo_url || "/logoiAlves.png"} alt="iAlves Logo" className="h-full w-auto object-contain" />
           </div>
           <div>
             <h1 className="text-base font-black uppercase tracking-widest text-white leading-none">
               Diretoria <span className="text-[#E11D48]">iAlves</span>
             </h1>
             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">
-              PAINEL ADMINISTRATIVO {isDemo && <span className="text-amber-500 font-black">[MODO DEMO]</span>}
+              PAINEL ADMINISTRATIVO
             </p>
           </div>
         </div>
@@ -1002,7 +1383,7 @@ export default function CentralDiretoria() {
           <p className="text-[10px] text-gray-600 font-black uppercase tracking-widest mb-4 px-3">Navegação Geral</p>
           
           <button
-            onClick={() => setActiveTab('pneus')}
+            onClick={() => changeTab('pneus')}
             className={`w-full text-left px-4 py-3 text-xs font-extrabold uppercase tracking-widest transition-all duration-300 rounded-none flex items-center gap-3 cursor-pointer ${
               activeTab === 'pneus' ? 'bg-[#E11D48] text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
@@ -1011,7 +1392,7 @@ export default function CentralDiretoria() {
           </button>
 
           <button
-            onClick={() => setActiveTab('banners')}
+            onClick={() => changeTab('banners')}
             className={`w-full text-left px-4 py-3 text-xs font-extrabold uppercase tracking-widest transition-all duration-300 rounded-none flex items-center gap-3 cursor-pointer ${
               activeTab === 'banners' ? 'bg-[#E11D48] text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
@@ -1020,7 +1401,7 @@ export default function CentralDiretoria() {
           </button>
 
           <button
-            onClick={() => setActiveTab('configuracoes')}
+            onClick={() => changeTab('configuracoes')}
             className={`w-full text-left px-4 py-3 text-xs font-extrabold uppercase tracking-widest transition-all duration-300 rounded-none flex items-center gap-3 cursor-pointer ${
               activeTab === 'configuracoes' ? 'bg-[#E11D48] text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
@@ -1029,7 +1410,7 @@ export default function CentralDiretoria() {
           </button>
 
           <button
-            onClick={() => setActiveTab('afiliados')}
+            onClick={() => changeTab('afiliados')}
             className={`w-full text-left px-4 py-3 text-xs font-extrabold uppercase tracking-widest transition-all duration-300 rounded-none flex items-center gap-3 cursor-pointer ${
               activeTab === 'afiliados' ? 'bg-[#E11D48] text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
@@ -1038,12 +1419,21 @@ export default function CentralDiretoria() {
           </button>
 
           <button
-            onClick={() => setActiveTab('auditoria')}
+            onClick={() => changeTab('auditoria')}
             className={`w-full text-left px-4 py-3 text-xs font-extrabold uppercase tracking-widest transition-all duration-300 rounded-none flex items-center gap-3 cursor-pointer ${
               activeTab === 'auditoria' ? 'bg-[#E11D48] text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
             🛡 Auditoria de Segurança
+          </button>
+
+          <button
+            onClick={() => changeTab('acessos')}
+            className={`w-full text-left px-4 py-3 text-xs font-extrabold uppercase tracking-widest transition-all duration-300 rounded-none flex items-center gap-3 cursor-pointer ${
+              activeTab === 'acessos' ? 'bg-[#E11D48] text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            🔐 Gestão de Acesso
           </button>
         </aside>
 
@@ -1106,7 +1496,7 @@ export default function CentralDiretoria() {
                       <tr key={pneu.id} className="hover:bg-white/2 transition-colors">
                         <td className="p-4">
                           <div className="relative w-12 h-12 bg-black border border-gray-800 p-1 flex items-center justify-center">
-                            <Image src={pneu.imagem_url} alt={pneu.nome} width={40} height={40} className="object-contain max-h-full" />
+                            <Image src={pneu.imagem_url} alt={pneu.nome} width={40} height={40} unoptimized className="object-contain max-h-full" />
                           </div>
                         </td>
                         <td className="p-4 font-extrabold text-white">
@@ -1202,7 +1592,7 @@ export default function CentralDiretoria() {
                       <tr key={banner.id} className="hover:bg-white/2 transition-colors">
                         <td className="p-4">
                           <div className="relative w-32 h-16 bg-black border border-gray-800 overflow-hidden flex items-center justify-center">
-                            <Image src={banner.imagem_url} alt="Banner" fill className="object-cover" />
+                            <Image src={banner.imagem_url} alt="Banner" fill unoptimized sizes="128px" className="object-cover" />
                           </div>
                         </td>
                         <td className="p-4 font-mono text-gray-300 max-w-xs truncate">
@@ -1260,52 +1650,352 @@ export default function CentralDiretoria() {
                 <p className="text-xs text-gray-500 font-bold uppercase mt-1">Gerencie textos de impacto comercial, redes sociais, telefones e APIs</p>
               </div>
 
-              <form onSubmit={saveConfigs} className="glass-panel p-6 sm:p-8 rounded-none space-y-6">
+              <form onSubmit={saveConfigs} className="glass-panel p-6 sm:p-8 rounded-none space-y-8">
                 
-                {/* 1. SEÇÃO DE IMPACTO E CONVERSÃO (HERO E HOME) */}
+                {/* BLOCO 1: HEADER CONFIG */}
                 <div className="space-y-4">
                   <h3 className="text-xs font-black uppercase tracking-widest text-[#E11D48] border-b border-gray-900 pb-2">
-                    🚩 Textos Globais da Página Inicial (Hero)
+                    Header Config (Cabeçalho do Site)
                   </h3>
-
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="block text-[10px] font-bold uppercase text-gray-400">Título Principal do Hero</label>
-                      <input
-                        type="text"
-                        value={configs.hero_titulo || ''}
-                        onChange={(e) => setConfigs({ ...configs, hero_titulo: e.target.value })}
-                        className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48]"
-                      />
+                      <label className="block text-[10px] font-bold uppercase text-gray-400">Logotipo da Empresa</label>
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-4 bg-black border border-gray-800 px-4 py-2">
+                          {configs.header_config?.logo_url && (
+                            <div className="relative w-12 h-12 bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                              <img src={configs.header_config.logo_url} alt="Logo Preview" className="max-w-full max-h-full object-contain" />
+                            </div>
+                          )}
+                          <div className="flex-1 text-xs text-gray-500 font-mono truncate">
+                            {configs.header_config?.logo_url || "Nenhum logotipo enviado"}
+                          </div>
+                        </div>
+                        <label className="inline-flex items-center justify-center px-4 py-2 border border-gray-800 hover:border-gray-600 bg-white/5 text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors text-center w-full">
+                          <span>{uploadingLogo ? 'Enviando...' : 'Fazer Upload de Logo'}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleLogoUpload}
+                            disabled={uploadingLogo}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-[10px] font-bold uppercase text-gray-400">Aviso Superior (Frete/Oferta)</label>
-                      <input
-                        type="text"
-                        value={configs.aviso_topo_frete || ''}
-                        onChange={(e) => setConfigs({ ...configs, aviso_topo_frete: e.target.value })}
-                        className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48]"
-                      />
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-bold uppercase text-gray-400">Texto de Aviso do Topo (Barra de Frete)</label>
+                        <input
+                          type="text"
+                          value={configs.header_config?.aviso_topo || ''}
+                          onChange={(e) => setConfigs({
+                            ...configs,
+                            header_config: {
+                              ...configs.header_config!,
+                              aviso_topo: e.target.value
+                            }
+                          })}
+                          className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48]"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between py-1">
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase text-gray-400">Ativar Barra de Aviso</label>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={configs.header_config?.aviso_ativo || false}
+                            onChange={(e) => setConfigs({
+                              ...configs,
+                              header_config: {
+                                ...configs.header_config!,
+                                aviso_ativo: e.target.checked
+                              }
+                            })}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#E11D48]"></div>
+                        </label>
+                      </div>
                     </div>
                   </div>
+                </div>
 
+                {/* BLOCO 2: HERO CONFIG */}
+                <div className="space-y-4 pt-4 border-t border-gray-900">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-[#E11D48] border-b border-gray-900 pb-2">
+                    Hero Config (Banner de Entrada da Vitrine)
+                  </h3>
                   <div className="space-y-2">
-                    <label className="block text-[10px] font-bold uppercase text-gray-400">Subtítulo de Detalhes do Hero</label>
+                    <label className="block text-[10px] font-bold uppercase text-gray-400">Título Principal do Hero</label>
+                    <input
+                      type="text"
+                      value={configs.hero_config?.titulo || ''}
+                      onChange={(e) => setConfigs({
+                        ...configs,
+                        hero_config: {
+                          ...configs.hero_config!,
+                          titulo: e.target.value
+                        }
+                      })}
+                      className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48]"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-[10px] font-bold uppercase text-gray-400">Subtítulo do Hero</label>
                     <textarea
-                      rows={3}
-                      value={configs.hero_subtitulo || ''}
-                      onChange={(e) => setConfigs({ ...configs, hero_subtitulo: e.target.value })}
+                      rows={2}
+                      value={configs.hero_config?.subtitulo || ''}
+                      onChange={(e) => setConfigs({
+                        ...configs,
+                        hero_config: {
+                          ...configs.hero_config!,
+                          subtitulo: e.target.value
+                        }
+                      })}
                       className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48] text-xs font-semibold"
                     />
                   </div>
                 </div>
 
-                {/* 2. SEÇÃO DE REDES SOCIAIS E CONTATO */}
+                {/* BLOCO 3: FOOTER CONFIG */}
                 <div className="space-y-4 pt-4 border-t border-gray-900">
                   <h3 className="text-xs font-black uppercase tracking-widest text-[#E11D48] border-b border-gray-900 pb-2">
-                    🤝 Canais de Atendimento & Rodapé Institucional
+                    Footer Config (Rodapé Institucional)
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <label className="block text-[10px] font-bold uppercase text-gray-400">CNPJ da Empresa</label>
+                      <input
+                        type="text"
+                        value={configs.footer_config?.cnpj || ''}
+                        onChange={(e) => setConfigs({
+                          ...configs,
+                          footer_config: {
+                            ...configs.footer_config!,
+                            cnpj: maskCNPJ(e.target.value)
+                          }
+                        })}
+                        onBlur={(e) => handleCNPJBlur(e.target.value)}
+                        placeholder="00.000.000/0001-00"
+                        className={`w-full bg-black border ${socialErrors.cnpj ? 'border-red-600 focus:border-red-500' : 'border-gray-800 focus:border-[#E11D48]'} px-4 py-2.5 rounded-none text-white focus:outline-none text-xs font-semibold`}
+                      />
+                      {socialErrors.cnpj && (
+                        <p className="text-[10px] font-bold text-red-500 uppercase">{socialErrors.cnpj}</p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-[10px] font-bold uppercase text-gray-400">Direitos Reservados (Nome)</label>
+                      <input
+                        type="text"
+                        value={configs.footer_config?.direitos_reservados || ''}
+                        onChange={(e) => setConfigs({
+                          ...configs,
+                          footer_config: {
+                            ...configs.footer_config!,
+                            direitos_reservados: e.target.value
+                          }
+                        })}
+                        placeholder="iAlves Pneus"
+                        className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48] text-xs font-semibold"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-[10px] font-bold uppercase text-gray-400">Texto Legal de Rodapé</label>
+                      <input
+                        type="text"
+                        value={configs.footer_config?.texto_rodape || ''}
+                        onChange={(e) => setConfigs({
+                          ...configs,
+                          footer_config: {
+                            ...configs.footer_config!,
+                            texto_rodape: e.target.value
+                          }
+                        })}
+                        className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48] text-xs font-semibold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                    <div className="space-y-2">
+                      <label className="block text-[10px] font-bold uppercase text-gray-400">Link do Instagram</label>
+                      <input
+                        type="text"
+                        value={configs.footer_config?.links_sociais?.instagram || ''}
+                        onChange={(e) => setConfigs({
+                          ...configs,
+                          footer_config: {
+                            ...configs.footer_config!,
+                            links_sociais: {
+                              ...configs.footer_config!.links_sociais,
+                              instagram: e.target.value
+                            }
+                          }
+                        })}
+                        onBlur={(e) => handleSocialBlur('instagram', e.target.value)}
+                        placeholder="https://instagram.com/..."
+                        className={`w-full bg-black border ${socialErrors.instagram ? 'border-red-600 focus:border-red-500' : 'border-gray-800 focus:border-gray-500'} px-4 py-2.5 rounded-none text-white focus:outline-none font-mono text-xs`}
+                      />
+                      {socialErrors.instagram && (
+                        <p className="text-[10px] font-bold text-red-500 uppercase">{socialErrors.instagram}</p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-[10px] font-bold uppercase text-gray-400">Link do Facebook</label>
+                      <input
+                        type="text"
+                        value={configs.footer_config?.links_sociais?.facebook || ''}
+                        onChange={(e) => setConfigs({
+                          ...configs,
+                          footer_config: {
+                            ...configs.footer_config!,
+                            links_sociais: {
+                              ...configs.footer_config!.links_sociais,
+                              facebook: e.target.value
+                            }
+                          }
+                        })}
+                        onBlur={(e) => handleSocialBlur('facebook', e.target.value)}
+                        placeholder="https://facebook.com/..."
+                        className={`w-full bg-black border ${socialErrors.facebook ? 'border-red-600 focus:border-red-500' : 'border-gray-800 focus:border-gray-500'} px-4 py-2.5 rounded-none text-white focus:outline-none font-mono text-xs`}
+                      />
+                      {socialErrors.facebook && (
+                        <p className="text-[10px] font-bold text-red-500 uppercase">{socialErrors.facebook}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="block text-[10px] font-bold uppercase text-gray-400">Link do YouTube</label>
+                      <input
+                        type="text"
+                        value={configs.footer_config?.links_sociais?.youtube || ''}
+                        onChange={(e) => setConfigs({
+                          ...configs,
+                          footer_config: {
+                            ...configs.footer_config!,
+                            links_sociais: {
+                              ...configs.footer_config!.links_sociais,
+                              youtube: e.target.value
+                            }
+                          }
+                        })}
+                        onBlur={(e) => handleSocialBlur('youtube', e.target.value)}
+                        placeholder="https://youtube.com/..."
+                        className={`w-full bg-black border ${socialErrors.youtube ? 'border-red-600 focus:border-red-500' : 'border-gray-800 focus:border-gray-500'} px-4 py-2.5 rounded-none text-white focus:outline-none font-mono text-xs`}
+                      />
+                      {socialErrors.youtube && (
+                        <p className="text-[10px] font-bold text-red-500 uppercase">{socialErrors.youtube}</p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-[10px] font-bold uppercase text-gray-400">Link do TikTok</label>
+                      <input
+                        type="text"
+                        value={configs.footer_config?.links_sociais?.tiktok || ''}
+                        onChange={(e) => setConfigs({
+                          ...configs,
+                          footer_config: {
+                            ...configs.footer_config!,
+                            links_sociais: {
+                              ...configs.footer_config!.links_sociais,
+                              tiktok: e.target.value
+                            }
+                          }
+                        })}
+                        onBlur={(e) => handleSocialBlur('tiktok', e.target.value)}
+                        placeholder="https://tiktok.com/..."
+                        className={`w-full bg-black border ${socialErrors.tiktok ? 'border-red-600 focus:border-red-500' : 'border-gray-800 focus:border-gray-500'} px-4 py-2.5 rounded-none text-white focus:outline-none font-mono text-xs`}
+                      />
+                      {socialErrors.tiktok && (
+                        <p className="text-[10px] font-bold text-red-500 uppercase">{socialErrors.tiktok}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* BLOCO 4: FEATURES CONFIG */}
+                <div className="space-y-4 pt-4 border-t border-gray-900">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-[#E11D48] border-b border-gray-900 pb-2">
+                    Features Config (Ativação de Recursos)
                   </h3>
 
+                  <div className="flex items-center justify-between py-2">
+                    <div>
+                      <label className="block text-xs font-black uppercase tracking-widest text-white">Barra de Frete Grátis Ativa</label>
+                      <p className="text-[9px] text-gray-500 font-bold uppercase mt-1">Exibe/oculta a barra promocional do frete</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={configs.features_config?.frete_ativo || false}
+                        onChange={(e) => setConfigs({
+                          ...configs,
+                          features_config: {
+                            ...configs.features_config!,
+                            frete_ativo: e.target.checked
+                          }
+                        })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#E11D48]"></div>
+                    </label>
+                  </div>
+
+                  <div className="flex items-center justify-between py-2 border-t border-gray-900/60">
+                    <div>
+                      <label className="block text-xs font-black uppercase tracking-widest text-white">Rede de Afiliados Ativa</label>
+                      <p className="text-[9px] text-gray-500 font-bold uppercase mt-1">Habilita/desabilita o programa de afiliados (Indicação Premiada)</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={configs.features_config?.afiliado_ativo || false}
+                        onChange={(e) => setConfigs({
+                          ...configs,
+                          features_config: {
+                            ...configs.features_config!,
+                            afiliado_ativo: e.target.checked
+                          }
+                        })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#E11D48]"></div>
+                    </label>
+                  </div>
+
+                  <div className="flex items-center justify-between py-2 border-t border-gray-900/60">
+                    <div>
+                      <label className="block text-xs font-black uppercase tracking-widest text-white">Blog com IA Autônomo Ativo</label>
+                      <p className="text-[9px] text-gray-500 font-bold uppercase mt-1">Permite a geração e publicação automática de posts via inteligência artificial</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={configs.features_config?.blog_ia_ativo || false}
+                        onChange={(e) => setConfigs({
+                          ...configs,
+                          features_config: {
+                            ...configs.features_config!,
+                            blog_ia_ativo: e.target.checked
+                          }
+                        })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#E11D48]"></div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* API KEYS / CONTATOS GERAIS */}
+                <div className="space-y-4 pt-4 border-t border-gray-900">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 border-b border-gray-900 pb-2">
+                    ⚙️ Chaves de API e Contato WhatsApp
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="block text-[10px] font-bold uppercase text-gray-400">WhatsApp de Vendas</label>
@@ -1318,94 +2008,6 @@ export default function CentralDiretoria() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="block text-[10px] font-bold uppercase text-gray-400">Texto Legal de Rodapé</label>
-                      <input
-                        type="text"
-                        value={configs.texto_rodape || ''}
-                        onChange={(e) => setConfigs({ ...configs, texto_rodape: e.target.value })}
-                        className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48]"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="block text-[10px] font-bold uppercase text-gray-400">CNPJ da Empresa</label>
-                      <input
-                        type="text"
-                        value={configs.cnpj || ''}
-                        onChange={(e) => setConfigs({ ...configs, cnpj: e.target.value })}
-                        placeholder="00.000.000/0001-00"
-                        className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48]"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="block text-[10px] font-bold uppercase text-gray-400">Direitos Reservados (Nome)</label>
-                      <input
-                        type="text"
-                        value={configs.direitos_reservados || ''}
-                        onChange={(e) => setConfigs({ ...configs, direitos_reservados: e.target.value })}
-                        placeholder="iAlves Pneus"
-                        className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48]"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-900/60 pt-4">
-                    <div className="space-y-2">
-                      <label className="block text-[10px] font-bold uppercase text-gray-400">Link do Instagram</label>
-                      <input
-                        type="url"
-                        value={configs.instagram_url || ''}
-                        onChange={(e) => setConfigs({ ...configs, instagram_url: e.target.value })}
-                        placeholder="https://instagram.com/..."
-                        className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-gray-500 font-mono text-xs"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="block text-[10px] font-bold uppercase text-gray-400">Link do Facebook</label>
-                      <input
-                        type="url"
-                        value={configs.facebook_url || ''}
-                        onChange={(e) => setConfigs({ ...configs, facebook_url: e.target.value })}
-                        placeholder="https://facebook.com/..."
-                        className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-gray-500 font-mono text-xs"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="block text-[10px] font-bold uppercase text-gray-400">Link do YouTube</label>
-                      <input
-                        type="url"
-                        value={configs.youtube_url || ''}
-                        onChange={(e) => setConfigs({ ...configs, youtube_url: e.target.value })}
-                        placeholder="https://youtube.com/..."
-                        className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-gray-500 font-mono text-xs"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="block text-[10px] font-bold uppercase text-gray-400">Link do TikTok</label>
-                      <input
-                        type="url"
-                        value={configs.tiktok_url || ''}
-                        onChange={(e) => setConfigs({ ...configs, tiktok_url: e.target.value })}
-                        placeholder="https://tiktok.com/..."
-                        className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-gray-500 font-mono text-xs"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. CREDENCIAIS DE APIS */}
-                <div className="space-y-4 pt-4 border-t border-gray-900">
-                  <h3 className="text-xs font-black uppercase tracking-widest text-[#E11D48] border-b border-gray-900 pb-2">
-                    🤖 Credenciais de Inteligência Artificial (Blog Autônomo)
-                  </h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
                       <label className="block text-[10px] font-bold uppercase text-gray-400">Gemini API Key</label>
                       <input
                         type="password"
@@ -1415,6 +2017,8 @@ export default function CentralDiretoria() {
                         className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-gray-500 font-mono text-xs"
                       />
                     </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="block text-[10px] font-bold uppercase text-gray-400">Groq API Key (Llama 3)</label>
                       <input
@@ -1425,45 +2029,6 @@ export default function CentralDiretoria() {
                         className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-gray-500 font-mono text-xs"
                       />
                     </div>
-                  </div>
-                </div>
-
-                {/* 4. CHAVES DE ATIVAÇÃO DE RECURSOS */}
-                <div className="space-y-4 pt-4 border-t border-gray-900">
-                  <h3 className="text-xs font-black uppercase tracking-widest text-[#E11D48] border-b border-gray-900 pb-2">
-                    🔌 Ativação de Recursos Visuais e Campanha
-                  </h3>
-
-                  <div className="flex items-center justify-between py-2">
-                    <div>
-                      <label className="block text-xs font-black uppercase tracking-widest text-white">Barra de Frete Grátis (Topo)</label>
-                      <p className="text-[9px] text-gray-500 font-bold uppercase mt-1">Exibe ou oculta a tarja de frete promocional no topo do site</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                      <input
-                        type="checkbox"
-                        checked={configs.aviso_topo_frete_ativo || false}
-                        onChange={(e) => setConfigs({ ...configs, aviso_topo_frete_ativo: e.target.checked })}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#E11D48]"></div>
-                    </label>
-                  </div>
-
-                  <div className="flex items-center justify-between py-2 border-t border-gray-900/60">
-                    <div>
-                      <label className="block text-xs font-black uppercase tracking-widest text-white">Rede de Afiliados (PIX)</label>
-                      <p className="text-[9px] text-gray-500 font-bold uppercase mt-1">Habilita ou pausa a campanha geral de comissão no Pix para parceiros</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                      <input
-                        type="checkbox"
-                        checked={configs.campanha_afiliados_ativa}
-                        onChange={(e) => setConfigs({ ...configs, campanha_afiliados_ativa: e.target.checked })}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#E11D48]"></div>
-                    </label>
                   </div>
                 </div>
 
@@ -1524,50 +2089,69 @@ export default function CentralDiretoria() {
                 </form>
               </div>
 
-              <div className="glass-panel rounded-none overflow-hidden max-w-4xl">
+              <div className="glass-panel rounded-none overflow-x-auto max-w-5xl">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-white/5 text-[10px] text-gray-400 font-black uppercase tracking-widest border-b border-gray-900">
                       <th className="p-4">Nome do Parceiro</th>
                       <th className="p-4">Código Referência</th>
                       <th className="p-4">Link Exclusivo de Vendas</th>
+                      <th className="p-4 text-center">Cliques (Link)</th>
+                      <th className="p-4 text-center">WhatsApps</th>
+                      <th className="p-4 text-center">Conversão</th>
                       <th className="p-4">Status</th>
                       <th className="p-4 text-center">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-900 text-sm">
-                    {afiliados.map((afil) => (
-                      <tr key={afil.id} className="hover:bg-white/2">
-                        <td className="p-4 font-bold text-white">{afil.nome_parceiro}</td>
-                        <td className="p-4 font-mono font-bold text-[#E11D48]">{afil.codigo_ref}</td>
-                        <td className="p-4 text-xs">
-                          <input
-                            type="text"
-                            readOnly
-                            value={`${typeof window !== 'undefined' ? window.location.origin : ''}/?ref=${afil.codigo_ref}`}
-                            className="bg-black/60 border border-gray-900 px-2.5 py-1 text-gray-400 font-mono rounded-none w-full max-w-[320px] select-all cursor-pointer"
-                          />
-                        </td>
-                        <td className="p-4">
-                          <span className={`inline-block text-[10px] font-black uppercase px-2 py-0.5 border ${
-                            afil.ativo ? 'bg-green-950/20 border-green-900/30 text-green-500' : 'bg-red-950/20 border-red-900/30 text-red-500'
-                          }`}>
-                            {afil.ativo ? 'ativo' : 'inativo'}
-                          </span>
-                        </td>
-                        <td className="p-4 text-center">
-                          <button
-                            onClick={() => toggleAfiliado(afil.id, afil.ativo)}
-                            className="px-2.5 py-1.5 border border-gray-800 hover:border-gray-600 bg-white/5 text-xs font-bold uppercase tracking-wider cursor-pointer"
-                          >
-                            {afil.ativo ? 'Pausar' : 'Ativar'}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {afiliados.map((afil) => {
+                      const clicks = afiliadoLogs.filter((l) => l.afiliado_id === afil.id && l.evento === 'clique_link').length;
+                      const wpp = afiliadoLogs.filter((l) => l.afiliado_id === afil.id && l.evento === 'clique_whatsapp').length;
+                      const conversionRate = clicks > 0 ? ((wpp / clicks) * 100).toFixed(1) + '%' : '0.0%';
+                      return (
+                        <tr key={afil.id} className="hover:bg-white/2">
+                          <td className="p-4 font-bold text-white">{afil.nome_parceiro}</td>
+                          <td className="p-4 font-mono font-bold text-[#E11D48]">{afil.codigo_ref}</td>
+                          <td className="p-4 text-xs">
+                            <input
+                              type="text"
+                              readOnly
+                              value={`${typeof window !== 'undefined' ? window.location.origin : ''}/?ref=${afil.codigo_ref}`}
+                              className="bg-black/60 border border-gray-900 px-2.5 py-1 text-gray-400 font-mono rounded-none w-full max-w-[240px] select-all cursor-pointer"
+                            />
+                          </td>
+                          <td className="p-4 text-center font-bold text-white">{clicks}</td>
+                          <td className="p-4 text-center font-bold text-green-400">{wpp}</td>
+                          <td className="p-4 text-center font-bold text-amber-500">{conversionRate}</td>
+                          <td className="p-4">
+                            <span className={`inline-block text-[10px] font-black uppercase px-2 py-0.5 border ${
+                              afil.ativo ? 'bg-green-950/20 border-green-900/30 text-green-500' : 'bg-red-950/20 border-red-900/30 text-red-500'
+                            }`}>
+                              {afil.ativo ? 'ativo' : 'inativo'}
+                            </span>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => toggleAfiliado(afil.id, afil.ativo)}
+                                className="px-2.5 py-1.5 border border-gray-800 hover:border-gray-600 bg-white/5 text-xs font-bold uppercase tracking-wider cursor-pointer"
+                              >
+                                {afil.ativo ? 'Pausar' : 'Ativar'}
+                              </button>
+                              <button
+                                onClick={() => deleteAfiliado(afil.id)}
+                                className="px-2.5 py-1.5 border border-red-900/30 hover:border-red-600 bg-red-950/10 text-[#EF4444] text-xs font-bold uppercase tracking-wider cursor-pointer"
+                              >
+                                Excluir
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                     {afiliados.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="p-8 text-center text-gray-500 font-bold uppercase tracking-wide">
+                        <td colSpan={8} className="p-8 text-center text-gray-500 font-bold uppercase tracking-wide">
                           Nenhum parceiro de indicação ativo.
                         </td>
                       </tr>
@@ -1580,37 +2164,283 @@ export default function CentralDiretoria() {
 
           {/* ABA 5: AUDITORIA DE SEGURANÇA */}
           {activeTab === 'auditoria' && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-black uppercase tracking-wider text-white">Auditoria de Segurança</h2>
-                <p className="text-xs text-gray-500 font-bold uppercase mt-1">Histórico em tempo real de logs de acesso e tentativas de intrusão</p>
+            <div className="space-y-10">
+              {/* Seção 1: Histórico de Alterações */}
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-2xl font-black uppercase tracking-wider text-white">Histórico de Alterações</h2>
+                  <p className="text-xs text-gray-500 font-bold uppercase mt-1">Registro em tempo real de modificações realizadas no painel</p>
+                </div>
+
+                <div className="glass-panel rounded-none overflow-x-auto max-w-5xl">
+                  <table className="w-full text-left border-collapse text-xs min-w-[700px]">
+                    <thead>
+                      <tr className="bg-white/5 text-[10px] text-gray-400 font-black uppercase tracking-widest border-b border-gray-900">
+                        <th className="p-4 w-1/4">Usuário</th>
+                        <th className="p-4 w-1/6">Ação</th>
+                        <th className="p-4">Descrição da Alteração</th>
+                        <th className="p-4 w-1/5">Data / Hora</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-900 text-sm">
+                      {activityLogs.map((log) => (
+                        <tr key={log.id} className="hover:bg-white/2 transition-colors">
+                          <td className="p-4 font-bold text-white break-all">{log.usuario}</td>
+                          <td className="p-4">
+                            <span className={`inline-block text-[9px] font-black uppercase px-2 py-0.5 border ${
+                              log.acao === 'Estoque' ? 'bg-indigo-950/20 border-indigo-800/30 text-indigo-400' :
+                              log.acao === 'Banners' ? 'bg-pink-950/20 border-pink-800/30 text-pink-400' :
+                              log.acao === 'Configurações' ? 'bg-orange-950/20 border-orange-800/30 text-orange-400' :
+                              log.acao === 'Afiliados' ? 'bg-teal-950/20 border-teal-800/30 text-teal-400' :
+                              'bg-rose-950/20 border-rose-800/30 text-rose-400'
+                            }`}>
+                              {log.acao}
+                            </span>
+                          </td>
+                          <td className="p-4 text-gray-300 font-medium">{log.descricao}</td>
+                          <td className="p-4 text-gray-500 font-mono text-xs">
+                            {new Date(log.created_at).toLocaleString('pt-BR')}
+                          </td>
+                        </tr>
+                      ))}
+                      {activityLogs.length === 0 && (
+                        <tr>
+                          <td colSpan={4} className="p-8 text-center text-gray-500 font-bold uppercase tracking-wider">
+                            Nenhuma alteração registrada ainda.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
-              <div className="glass-panel rounded-none overflow-hidden max-w-4xl">
-                <table className="w-full text-left border-collapse text-xs">
+              {/* Seção 2: Registro de Acessos (Logins) */}
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-xl font-black uppercase tracking-wider text-white">Registro de Acessos (Login)</h2>
+                  <p className="text-xs text-gray-500 font-bold uppercase mt-1">Logs de autenticação de administradores</p>
+                </div>
+
+                <div className="glass-panel rounded-none overflow-x-auto max-w-4xl">
+                  <table className="w-full text-left border-collapse text-xs min-w-[500px]">
+                    <thead>
+                      <tr className="bg-white/5 text-[10px] text-gray-400 font-black uppercase tracking-widest border-b border-gray-900">
+                        <th className="p-4">E-mail Tentado</th>
+                        <th className="p-4">Data / Hora do Evento</th>
+                        <th className="p-4">Status da Tentativa</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-900 text-sm">
+                      {audits.map((aud) => (
+                        <tr key={aud.id} className="hover:bg-white/2 transition-colors">
+                          <td className="p-4 font-bold text-white">{aud.email}</td>
+                          <td className="p-4 text-gray-400 font-mono text-xs">
+                            {new Date(aud.attempted_at).toLocaleString('pt-BR')}
+                          </td>
+                          <td className="p-4">
+                            <span className={`inline-block text-[10px] font-black uppercase px-3 py-1 border ${
+                              aud.status === 'tentativa_bloqueada' ? 'bg-red-950/40 border-red-800/40 text-red-500 font-black animate-pulse' : 'bg-green-950/20 border-green-800/30 text-green-500'
+                            }`}>
+                              {aud.status === 'tentativa_bloqueada' ? '❌ BLOQUEADO' : '✔ SUCESSO'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                      {audits.length === 0 && (
+                        <tr>
+                          <td colSpan={3} className="p-8 text-center text-gray-500 font-bold uppercase tracking-wider">
+                            Nenhum registro de acesso encontrado.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ═══════════════════════════════════════════════════════════════════ */}
+          {/* ABA: GESTÃO DE ACESSO (Visível apenas para o Super Admin)         */}
+          {/* ═══════════════════════════════════════════════════════════════════ */}
+          {activeTab === 'acessos' && (
+            <div className="space-y-8">
+              <div>
+                <h2 className="text-2xl font-black uppercase tracking-wider text-white">Gestão de Acesso</h2>
+                <p className="text-xs text-gray-500 font-bold uppercase mt-1">Controle de e-mails autorizados a acessar a Central da Diretoria</p>
+              </div>
+
+              {/* Formulário para Conceder Acesso */}
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const email = novoAdminEmail.trim().toLowerCase();
+                  if (!email || !email.includes('@')) {
+                    showToast('Informe um e-mail válido.', 'erro');
+                    return;
+                  }
+                  if (listaAdmins.some((a) => a.email === email)) {
+                    showToast('Este e-mail já possui acesso.', 'erro');
+                    return;
+                  }
+                  setLoading(true);
+                  try {
+                    const { data, error } = await supabase
+                      .from('administradores')
+                      .insert({ email, role: 'ADMIN', status: 'ATIVO' })
+                      .select('id, email, role, status')
+                      .single();
+                    if (error) throw new Error(`Erro ao conceder acesso: ${error.message}`);
+                    await logActivity('Gestão de Acesso', `Concedeu novo acesso de administrador para o e-mail "${email}".`);
+                    if (data) {
+                      setListaAdmins([...listaAdmins, { id: data.id, email: data.email, role: data.role, status: data.status }]);
+                    }
+                    setNovoAdminEmail('');
+                    showToast(`Acesso concedido para ${email}`);
+                  } catch (err: any) {
+                    console.error('[addAdmin]', err);
+                    showToast(err.message || 'Falha ao conceder acesso.', 'erro');
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                className="glass-panel p-6 rounded-none max-w-2xl space-y-4"
+              >
+                <h3 className="text-sm font-black uppercase tracking-wider text-white">Conceder Novo Acesso</h3>
+                <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+                  <div className="flex-1 w-full space-y-1">
+                    <label className="block text-[9px] text-gray-400 font-black uppercase tracking-wider">E-mail do Administrador</label>
+                    <input
+                      type="email"
+                      required
+                      value={novoAdminEmail}
+                      onChange={(e) => setNovoAdminEmail(e.target.value)}
+                      placeholder="exemplo@gmail.com"
+                      className="w-full bg-black border border-gray-800 px-3 py-2.5 text-xs rounded-none text-white focus:outline-none focus:border-[#E11D48] placeholder:text-gray-700"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full sm:w-auto px-5 py-2.5 bg-[#22C55E] hover:bg-[#16A34A] text-white font-extrabold uppercase text-[10px] tracking-wider transition-all rounded-none cursor-pointer disabled:opacity-50 shrink-0"
+                  >
+                    + Conceder Acesso
+                  </button>
+                </div>
+              </form>
+
+              {/* Lista de Administradores Cadastrados */}
+              <div className="glass-panel rounded-none overflow-x-auto max-w-4xl">
+                <table className="w-full min-w-[700px] text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-white/5 text-[10px] text-gray-400 font-black uppercase tracking-widest border-b border-gray-900">
-                      <th className="p-4">E-mail Tentado</th>
-                      <th className="p-4">Data / Hora do Evento</th>
-                      <th className="p-4">Status da Tentativa</th>
+                      <th className="p-4">E-mail Autorizado</th>
+                      <th className="p-4">Nível</th>
+                      <th className="p-4">Status</th>
+                      <th className="p-4 text-right">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-900 text-sm">
-                    {audits.map((aud) => (
-                      <tr key={aud.id} className="hover:bg-white/2">
-                        <td className="p-4 font-bold text-white">{aud.email}</td>
-                        <td className="p-4 text-gray-400 font-mono text-xs">
-                          {new Date(aud.attempted_at).toLocaleString('pt-BR')}
+                    {listaAdmins.map((admin) => (
+                      <tr key={admin.email} className="hover:bg-white/2 transition-colors">
+                        <td className="p-4 font-bold text-white">{admin.email}</td>
+                        <td className="p-4">
+                          {isSuperAdmin ? (
+                            <select
+                              value={admin.role}
+                              disabled={loading || admin.email === userEmail}
+                              onChange={(e) => saveNivel(admin.id!, admin.email, e.target.value as 'SUPER_ADMIN' | 'ADMIN')}
+                              className="bg-black border border-gray-800 text-white text-xs px-2.5 py-1 rounded-none focus:outline-none focus:border-[#E11D48] cursor-pointer disabled:opacity-50"
+                            >
+                              <option value="SUPER_ADMIN">SUPER_ADMIN</option>
+                              <option value="ADMIN">ADMIN</option>
+                            </select>
+                          ) : (
+                            <span className="inline-block text-[10px] font-black uppercase px-3 py-1 border bg-blue-950/20 border-blue-800/30 text-blue-400">
+                              {admin.role}
+                            </span>
+                          )}
                         </td>
                         <td className="p-4">
-                          <span className={`inline-block text-[10px] font-black uppercase px-3 py-1 border ${
-                            aud.status === 'tentativa_bloqueada' ? 'bg-red-950/40 border-red-800/40 text-red-500 font-black animate-pulse' : 'bg-green-950/20 border-green-800/30 text-green-500'
-                          }`}>
-                            {aud.status === 'tentativa_bloqueada' ? '❌ BLOQUEADO' : '✔ SUCESSO'}
-                          </span>
+                          {admin.status === 'ATIVO' && (
+                            <span className="inline-block text-[9px] font-black uppercase px-2.5 py-0.5 border bg-green-950/20 border-green-800/30 text-green-400">
+                              ATIVO
+                            </span>
+                          )}
+                          {admin.status === 'BLOQUEADO' && (
+                            <span className="inline-block text-[9px] font-black uppercase px-2.5 py-0.5 border bg-red-950/20 border-red-800/30 text-red-400">
+                              BLOQUEADO
+                            </span>
+                          )}
+                          {(admin.status === 'PENDENTE' || !admin.status) && (
+                            <span className="inline-block text-[9px] font-black uppercase px-2.5 py-0.5 border bg-yellow-950/20 border-yellow-800/30 text-yellow-400">
+                              PENDENTE
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-4 text-right flex items-center justify-end gap-3">
+                          {isSuperAdmin && admin.email !== userEmail && (
+                            <>
+                              {admin.status !== 'ATIVO' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => saveStatus(admin.id!, admin.email, 'ATIVO')}
+                                  disabled={loading}
+                                  className="px-2.5 py-1.5 bg-green-950/40 hover:bg-green-900/60 border border-green-800/40 text-green-400 hover:text-green-300 font-extrabold uppercase text-[9px] tracking-wider transition-all rounded-none cursor-pointer disabled:opacity-50"
+                                >
+                                  Liberar Acesso
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => saveStatus(admin.id!, admin.email, 'BLOQUEADO')}
+                                  disabled={loading}
+                                  className="px-2.5 py-1.5 bg-yellow-950/40 hover:bg-yellow-900/60 border border-yellow-800/40 text-yellow-400 hover:text-yellow-300 font-extrabold uppercase text-[9px] tracking-wider transition-all rounded-none cursor-pointer disabled:opacity-50"
+                                >
+                                  Bloquear
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  askConfirmation(
+                                    'Revogar Acesso',
+                                    `Revogar acesso de ${admin.email}? Este usuário não poderá mais acessar a Central da Diretoria.`,
+                                    async () => {
+                                      setLoading(true);
+                                      try {
+                                        const { error } = await supabase.from('administradores').delete().eq('email', admin.email);
+                                        if (error) throw new Error(`Erro ao revogar acesso: ${error.message}`);
+                                        await logActivity('Gestão de Acesso', `Revogou o acesso do administrador "${admin.email}".`);
+                                        setListaAdmins(listaAdmins.filter(a => a.email !== admin.email));
+                                        showToast(`Acesso revogado para ${admin.email}`);
+                                      } catch (err: any) {
+                                        console.error('[removeAdmin]', err);
+                                        showToast(err.message || 'Falha ao revogar acesso.', 'erro');
+                                      } finally {
+                                        setLoading(false);
+                                      }
+                                    }
+                                  );
+                                }}
+                                disabled={loading}
+                                className="px-2.5 py-1.5 bg-red-950/40 hover:bg-red-900/60 border border-red-800/40 text-red-400 hover:text-red-300 font-extrabold uppercase text-[9px] tracking-wider transition-all rounded-none cursor-pointer disabled:opacity-50"
+                              >
+                                Remover Acesso
+                              </button>
+                            </>
+                          )}
                         </td>
                       </tr>
                     ))}
+                    {listaAdmins.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="p-8 text-center text-gray-600 font-bold uppercase text-xs">
+                          Nenhum administrador encontrado. Execute o script SQL de inicialização.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1778,7 +2608,7 @@ export default function CentralDiretoria() {
                 {isUploading && <p className="text-[10px] text-amber-500 font-bold animate-pulse">Comprimindo...</p>}
                 {pneuForm.imagem_url && (
                   <div className="mt-2 relative w-16 h-16 bg-black border border-gray-900 p-1 flex items-center justify-center">
-                    <Image src={pneuForm.imagem_url} alt="Previa" width={55} height={55} className="object-contain max-h-full" />
+                    <Image src={pneuForm.imagem_url} alt="Previa" width={55} height={55} unoptimized className="object-contain max-h-full" />
                   </div>
                 )}
               </div>
@@ -1877,7 +2707,7 @@ export default function CentralDiretoria() {
                 {isUploading && <p className="text-[10px] text-amber-500 font-bold animate-pulse">Processando imagem em tempo real...</p>}
                 {bannerForm.imagem_url && (
                   <div className="mt-2 relative w-full h-24 bg-black border border-gray-900 overflow-hidden flex items-center justify-center">
-                    <Image src={bannerForm.imagem_url} alt="Previa Banner" fill className="object-cover" />
+                    <Image src={bannerForm.imagem_url} alt="Previa Banner" fill unoptimized sizes="(max-width: 768px) 100vw, 500px" className="object-cover" />
                   </div>
                 )}
               </div>
@@ -1903,6 +2733,87 @@ export default function CentralDiretoria() {
           </div>
         </div>
       )}
+
+
+
+      {/* Confirmação customizada */}
+      {confirmDialog && confirmDialog.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="glass-panel max-w-sm w-full p-6 border-t-4 border-t-[#E11D48] space-y-6 animate-scale-up">
+            <div className="space-y-2">
+              <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+                <svg className="w-5 h-5 text-[#E11D48]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                {confirmDialog.title}
+              </h3>
+              <p className="text-xs text-gray-400 font-bold uppercase leading-relaxed">{confirmDialog.message}</p>
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDialog(null)}
+                className="px-4 py-2 bg-transparent hover:bg-white/5 border border-gray-800 text-gray-400 hover:text-white font-extrabold uppercase text-[10px] tracking-wider transition-all duration-200 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmDialog.onConfirm}
+                className="px-4 py-2 bg-[#E11D48] hover:bg-[#F43F5E] text-white font-extrabold uppercase text-[10px] tracking-wider transition-all duration-200 cursor-pointer"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Container de Toasts de Notificação */}
+      <div className="fixed bottom-6 right-6 z-[100] space-y-3 max-w-sm w-full pointer-events-none">
+        {toasts.map((t) => (
+          <div
+            key={t.id}
+            className={`pointer-events-auto glass-panel p-4 border-l-4 flex items-start justify-between gap-3 shadow-2xl transition-all duration-300 animate-slide-in ${
+              t.type === 'sucesso' ? 'border-l-green-500 bg-green-950/20' :
+              t.type === 'erro' ? 'border-l-red-500 bg-red-950/20' :
+              'border-l-blue-500 bg-blue-950/20'
+            }`}
+          >
+            <div className="flex items-start gap-2.5">
+              {t.type === 'sucesso' && (
+                <svg className="w-4 h-4 text-green-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              )}
+              {t.type === 'erro' && (
+                <svg className="w-4 h-4 text-red-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              )}
+              {t.type === 'info' && (
+                <svg className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              )}
+              <div>
+                <p className="text-[10px] text-gray-400 font-black uppercase tracking-wider">
+                  {t.type === 'sucesso' ? 'Sucesso' : t.type === 'erro' ? 'Erro' : 'Notificação'}
+                </p>
+                <p className="text-xs text-white font-bold uppercase mt-0.5 leading-tight">{t.text}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setToasts(prev => prev.filter(item => item.id !== t.id))}
+              className="text-gray-500 hover:text-white transition-colors cursor-pointer shrink-0"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        ))}
+      </div>
 
     </div>
   );

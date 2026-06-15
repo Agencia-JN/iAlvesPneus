@@ -31,9 +31,9 @@ let supabaseInstance: any;
 try {
   supabaseInstance = createClient(finalUrl, finalKey, {
     auth: {
-      persistSession: typeof window !== 'undefined',
-      autoRefreshToken: typeof window !== 'undefined',
-      detectSessionInUrl: typeof window !== 'undefined',
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
     },
   });
 } catch (error) {
