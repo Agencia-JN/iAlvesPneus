@@ -110,6 +110,7 @@ export default function CentralDiretoria() {
   const [afiliadoLogs, setAfiliadoLogs] = useState<AfiliadoLog[]>([]);
   const [listaAdmins, setListaAdmins] = useState<AdminUser[]>([]);
   const [novoAdminEmail, setNovoAdminEmail] = useState('');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Toast e Confirmação customizados
   interface Toast {
@@ -317,8 +318,8 @@ export default function CentralDiretoria() {
       title,
       message,
       onConfirm: () => {
-        onConfirm();
         setConfirmDialog(null);
+        onConfirm();
       }
     });
   };
@@ -465,6 +466,22 @@ export default function CentralDiretoria() {
 
 
 
+  const fetchAfiliados = async () => {
+    try {
+      const { data, error } = await supabase.from('afiliados').select('*').order('nome_parceiro', { ascending: true });
+      if (error) throw error;
+      if (data) {
+        const uniqueMap = new Map();
+        data.forEach((item: any) => uniqueMap.set(item.id, item));
+        setAfiliados(Array.from(uniqueMap.values()));
+      } else {
+        setAfiliados([]);
+      }
+    } catch (err) {
+      console.error('[fetchAfiliados] Erro:', err);
+    }
+  };
+
   const loadDatabaseData = async () => {
     try {
       const results = await Promise.allSettled([
@@ -517,7 +534,9 @@ export default function CentralDiretoria() {
       // 4. Afiliados
       const afiliadosRes = results[4];
       if (afiliadosRes.status === 'fulfilled' && afiliadosRes.value.data) {
-        setAfiliados(afiliadosRes.value.data);
+        const uniqueMap = new Map();
+        afiliadosRes.value.data.forEach((item: any) => uniqueMap.set(item.id, item));
+        setAfiliados(Array.from(uniqueMap.values()));
       }
 
       // 4b. Logs de Afiliados
@@ -999,6 +1018,11 @@ export default function CentralDiretoria() {
           async () => {
             setLoading(true);
             try {
+              // 1. Delete from database first
+              const { error } = await supabase.from('pneus').delete().eq('id', id);
+              if (error) throw new Error(`Erro ao deletar pneu: ${error.message}`);
+
+              // 2. Only if DB deletion succeeds, remove file from storage
               if (pneuToDelete?.imagem_url) {
                 const path = getStoragePathFromUrl(pneuToDelete.imagem_url, 'pneus');
                 if (path) {
@@ -1006,8 +1030,8 @@ export default function CentralDiretoria() {
                 }
               }
 
-              const { error } = await supabase.from('pneus').delete().eq('id', id);
-              if (error) throw new Error(`Erro ao deletar pneu: ${error.message}`);
+              // 3. Update React state immediately
+              setPneus(prev => prev.filter(p => p.id !== id));
 
               await logActivity('Estoque', `Removeu permanentemente o pneu "${pneuToDelete?.nome || id}" (${pneuToDelete?.marca || 'Desconhecida'}).`);
               showToast('Pneu eliminado definitivamente com sucesso!');
@@ -1286,6 +1310,7 @@ export default function CentralDiretoria() {
         const partner = afiliados.find(a => a.id === id);
         await logActivity('Afiliados', `Alterou o status do afiliado "${partner?.nome_parceiro || id}" para ${!currentStatus ? 'ATIVO' : 'INATIVO'}.`);
       }
+      setAfiliados(prev => prev.map(a => a.id === id ? { ...a, ativo: !currentStatus } : a));
       showToast('Status do afiliado alterado!');
       loadDatabaseData().catch(loadErr => console.error('[toggleAfiliado] Erro ao recarregar dados:', loadErr));
     } catch (e) {
@@ -1307,6 +1332,7 @@ export default function CentralDiretoria() {
           const { error } = await supabase.from('afiliados').delete().eq('id', id);
           if (error) throw error;
 
+          setAfiliados(prev => prev.filter(a => a.id !== id));
           await logActivity('Afiliados', `Excluiu o parceiro de indicação "${partner?.nome_parceiro || id}" (código: ${partner?.codigo_ref}).`);
           showToast('Parceiro de indicação excluído!');
           loadDatabaseData().catch(loadErr => console.error('[deleteAfiliado] Erro ao recarregar dados:', loadErr));
@@ -2376,12 +2402,36 @@ export default function CentralDiretoria() {
                           <td className="p-4 font-bold text-white">{afil.nome_parceiro}</td>
                           <td className="p-4 font-mono font-bold text-[#E11D48]">{afil.codigo_ref}</td>
                           <td className="p-4 text-xs">
-                            <input
-                              type="text"
-                              readOnly
-                              value={`${typeof window !== 'undefined' ? window.location.origin : ''}/?ref=${afil.codigo_ref}`}
-                              className="bg-black/60 border border-gray-900 px-2.5 py-1 text-gray-400 font-mono rounded-none w-full max-w-[240px] select-all cursor-pointer"
-                            />
+                            <div className="flex items-center gap-1.5 max-w-[340px]">
+                              <input
+                                type="text"
+                                readOnly
+                                value={`${typeof window !== 'undefined' ? window.location.origin : ''}/?ref=${afil.codigo_ref}`}
+                                className="bg-black/60 border border-gray-900 px-2.5 py-1 text-gray-400 font-mono rounded-none flex-1 select-all cursor-pointer text-[11px]"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/?ref=${afil.codigo_ref}`;
+                                  navigator.clipboard.writeText(url);
+                                  setCopiedId(afil.id);
+                                  setTimeout(() => setCopiedId(null), 2000);
+                                }}
+                                className="px-2 py-1.5 border border-gray-800 hover:border-gray-600 bg-white/5 hover:bg-white/10 text-[9px] font-black uppercase tracking-wider cursor-pointer text-white flex items-center gap-1 transition-all rounded-none"
+                                title="Copiar link"
+                              >
+                                {copiedId === afil.id ? (
+                                  <span className="text-green-400 font-black">Copiado!</span>
+                                ) : (
+                                  <>
+                                    <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                                    </svg>
+                                    <span>Copiar</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
                           </td>
                           <td className="p-4 text-center font-bold text-white">{clicks}</td>
                           <td className="p-4 text-center font-bold text-green-400">{wpp}</td>

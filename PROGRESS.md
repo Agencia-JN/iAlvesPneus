@@ -22,6 +22,10 @@
   - O monitor lateral da diretoria foi atualizado para exibir as métricas de estoque em tempo real: pneus Cadastrados, Ativos, Esgotados e total de Banners promocionais.
 - [x] **Filtragem do Catálogo na Vitrine Pública (E-Commerce):**
   - Modificada a query de pneus em `src/app/page.tsx` para carregar exclusivamente os itens que tenham `status_produto = 'ativo'` e `quantidade_estoque > 0`. Produtos inativos ou sem estoque são ocultados automaticamente da vitrine de e-commerce.
+- [x] **Estabilização da Exclusão Física e UX de Afiliados (16/06/2026):**
+  - **Correção no Fluxo de Confirmação:** Corrigida a concorrência de agendamentos no `askConfirmation` onde fechar o primeiro modal anulava a exibição do segundo. Modificada a ordem para garantir a abertura em cascata das confirmações de `deletePneu`.
+  - **Deduplicação da Lista de Afiliados:** Criada a função `fetchAfiliados` e adicionado o filtro por `Map` (Deduplication) na ingestão de dados em `loadDatabaseData` e `fetchAfiliados` para blindar o estado contra duplicações visuais.
+  - **Copiar para Área de Transferência (Clipboard):** Removido o corte agressivo do layout na célula do link de indicação, e implementado um botão com ícone de clipboard e feedback visual temporário ("Copiado!") associado ao afiliado correspondente.
 - [x] **Organização e Configuração de Favicons (16/06/2026):**
   - Criada a pasta `public/favicon/` e movidos todos os 7 arquivos de ícones soltos na raiz para dentro dela.
   - Atualizado o objeto `metadata` no arquivo `src/app/layout.tsx` para mapear os caminhos corretos de `icon`, `apple-touch-icon` e o manifesto (`site.webmanifest`), limpando a raiz do repositório.
