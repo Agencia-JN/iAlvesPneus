@@ -190,11 +190,13 @@ ON CONFLICT (id) DO UPDATE SET
 -- TABELA: pneus (leitura pública, escrita somente autenticados)
 ALTER TABLE pneus ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Leitura publica de pneus" ON public.pneus;
 CREATE POLICY "Leitura publica de pneus"
   ON pneus FOR SELECT
   TO anon, authenticated
   USING (true);
 
+DROP POLICY IF EXISTS "Escrita de pneus somente autenticados" ON public.pneus;
 CREATE POLICY "Escrita de pneus somente autenticados"
   ON pneus FOR ALL
   TO authenticated
@@ -205,11 +207,13 @@ CREATE POLICY "Escrita de pneus somente autenticados"
 -- TABELA: banners (leitura pública, escrita somente autenticados)
 ALTER TABLE banners ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Leitura publica de banners" ON public.banners;
 CREATE POLICY "Leitura publica de banners"
   ON banners FOR SELECT
   TO anon, authenticated
   USING (true);
 
+DROP POLICY IF EXISTS "Escrita de banners somente autenticados" ON public.banners;
 CREATE POLICY "Escrita de banners somente autenticados"
   ON banners FOR ALL
   TO authenticated
@@ -220,11 +224,13 @@ CREATE POLICY "Escrita de banners somente autenticados"
 -- TABELA: configuracoes (leitura pública, escrita somente autenticados)
 ALTER TABLE configuracoes ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Leitura publica de configuracoes" ON public.configuracoes;
 CREATE POLICY "Leitura publica de configuracoes"
   ON configuracoes FOR SELECT
   TO anon, authenticated
   USING (true);
 
+DROP POLICY IF EXISTS "Escrita de configuracoes somente autenticados" ON public.configuracoes;
 CREATE POLICY "Escrita de configuracoes somente autenticados"
   ON configuracoes FOR ALL
   TO authenticated
@@ -235,6 +241,7 @@ CREATE POLICY "Escrita de configuracoes somente autenticados"
 -- TABELA: afiliados (somente autenticados)
 ALTER TABLE afiliados ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Acesso de afiliados somente autenticados" ON public.afiliados;
 CREATE POLICY "Acesso de afiliados somente autenticados"
   ON afiliados FOR ALL
   TO authenticated
@@ -257,17 +264,20 @@ $$ LANGUAGE plpgsql;
 -- TABELA: administradores (somente autenticados podem ler, apenas super admin pode gerenciar)
 ALTER TABLE public.administradores ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Leitura de administradores somente autenticados" ON public.administradores;
 CREATE POLICY "Leitura de administradores somente autenticados"
   ON public.administradores FOR SELECT
   TO authenticated
   USING (true);
 
+DROP POLICY IF EXISTS "Super admins gerenciam a tabela" ON public.administradores;
 CREATE POLICY "Super admins gerenciam a tabela"
   ON public.administradores FOR ALL
   TO authenticated
   USING (public.is_super_admin())
   WITH CHECK (public.is_super_admin());
 
+DROP POLICY IF EXISTS "Permitir auto-registro de novos usuarios como PENDENTE" ON public.administradores;
 CREATE POLICY "Permitir auto-registro de novos usuarios como PENDENTE"
   ON public.administradores FOR INSERT
   TO authenticated
@@ -281,11 +291,13 @@ CREATE POLICY "Permitir auto-registro de novos usuarios como PENDENTE"
 -- TABELA: login_audits (somente autenticados, com insert para anon durante o fluxo de bloqueio)
 ALTER TABLE login_audits ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Insert de login_audits para todos" ON public.login_audits;
 CREATE POLICY "Insert de login_audits para todos"
   ON login_audits FOR INSERT
   TO anon, authenticated
   WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Leitura de login_audits somente autenticados" ON public.login_audits;
 CREATE POLICY "Leitura de login_audits somente autenticados"
   ON login_audits FOR SELECT
   TO authenticated
@@ -310,36 +322,42 @@ VALUES ('banners', 'banners', true)
 ON CONFLICT (id) DO UPDATE SET public = true;
 
 -- Policy: qualquer pessoa pode VER imagens dos pneus
+DROP POLICY IF EXISTS "Leitura publica storage pneus" ON storage.objects;
 CREATE POLICY "Leitura publica storage pneus"
   ON storage.objects FOR SELECT
   TO anon, authenticated
   USING (bucket_id = 'pneus');
 
 -- Policy: somente autenticados podem FAZER UPLOAD em pneus
+DROP POLICY IF EXISTS "Upload storage pneus somente autenticados" ON storage.objects;
 CREATE POLICY "Upload storage pneus somente autenticados"
   ON storage.objects FOR INSERT
   TO authenticated
   WITH CHECK (bucket_id = 'pneus');
 
 -- Policy: somente autenticados podem DELETAR imagens de pneus
+DROP POLICY IF EXISTS "Delete storage pneus somente autenticados" ON storage.objects;
 CREATE POLICY "Delete storage pneus somente autenticados"
   ON storage.objects FOR DELETE
   TO authenticated
   USING (bucket_id = 'pneus');
 
 -- Policy: qualquer pessoa pode VER banners
+DROP POLICY IF EXISTS "Leitura publica storage banners" ON storage.objects;
 CREATE POLICY "Leitura publica storage banners"
   ON storage.objects FOR SELECT
   TO anon, authenticated
   USING (bucket_id = 'banners');
 
 -- Policy: somente autenticados podem FAZER UPLOAD de banners
+DROP POLICY IF EXISTS "Upload storage banners somente autenticados" ON storage.objects;
 CREATE POLICY "Upload storage banners somente autenticados"
   ON storage.objects FOR INSERT
   TO authenticated
   WITH CHECK (bucket_id = 'banners');
 
 -- Policy: somente autenticados podem DELETAR banners
+DROP POLICY IF EXISTS "Delete storage banners somente autenticados" ON storage.objects;
 CREATE POLICY "Delete storage banners somente autenticados"
   ON storage.objects FOR DELETE
   TO authenticated
@@ -359,11 +377,13 @@ CREATE TABLE IF NOT EXISTS public.activity_logs (
 ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
 
 -- Políticas de RLS para activity_logs
+DROP POLICY IF EXISTS "Insert de activity_logs para todos autenticados" ON public.activity_logs;
 CREATE POLICY "Insert de activity_logs para todos autenticados"
   ON public.activity_logs FOR INSERT
   TO authenticated
   WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Leitura de activity_logs somente autenticados" ON public.activity_logs;
 CREATE POLICY "Leitura de activity_logs somente autenticados"
   ON public.activity_logs FOR SELECT
   TO authenticated
@@ -382,8 +402,9 @@ CREATE TABLE IF NOT EXISTS public.afiliado_logs (
 ALTER TABLE public.afiliado_logs ENABLE ROW LEVEL SECURITY;
 
 -- Políticas de RLS para afiliado_logs
+DROP POLICY IF EXISTS "Insercao publica de logs de afiliados" ON public.afiliado_logs;
 DROP POLICY IF EXISTS "Inserção pública de logs de afiliados" ON public.afiliado_logs;
-CREATE POLICY "Inserção pública de logs de afiliados"
+CREATE POLICY "Insercao publica de logs de afiliados"
   ON public.afiliado_logs FOR INSERT
   TO anon, authenticated
   WITH CHECK (true);
@@ -395,8 +416,9 @@ CREATE POLICY "Leitura de logs de afiliados somente autenticados"
   USING (true);
 
 -- Política de leitura pública na tabela afiliados para permitir lookup de códigos ref
+DROP POLICY IF EXISTS "Leitura publica de afiliados para lookup de codigo" ON public.afiliados;
 DROP POLICY IF EXISTS "Leitura pública de afiliados para lookup de código" ON public.afiliados;
-CREATE POLICY "Leitura pública de afiliados para lookup de código"
+CREATE POLICY "Leitura publica de afiliados para lookup de codigo"
   ON public.afiliados FOR SELECT
   TO anon, authenticated
   USING (true);
