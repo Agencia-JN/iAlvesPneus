@@ -228,6 +228,7 @@ export default function CentralDiretoria() {
   // Referências dos inputs de arquivos
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bannerFileInputRef = useRef<HTMLInputElement>(null);
+  const csvFileInputRef = useRef<HTMLInputElement>(null);
 
   // ─── Fluxo de Autenticação ────────────────────────────────────────────────
   // Estratégia dual para máxima confiabilidade em ambiente Netlify/Next.js:
@@ -1048,6 +1049,141 @@ export default function CentralDiretoria() {
     );
   };
 
+  // ─── FERRAMENTAS EM MASSA (Catálogo de Pneus) ──────────────────────────────
+
+  const zerarEstoque = () => {
+    askConfirmation(
+      'ZERAR ESTOQUE — CONFIRMAÇÃO 1/3',
+      'Tem certeza que deseja iniciar a exclusão total do estoque? Todos os pneus cadastrados serão removidos do sistema.',
+      () => {
+        askConfirmation(
+          '⚠️ CUIDADO — CONFIRMAÇÃO 2/3',
+          'CUIDADO: Esta ação vai apagar TODOS os pneus do banco de dados e as imagens do Storage. Não será possível recuperar os dados.',
+          () => {
+            askConfirmation(
+              '🚨 AVISO FINAL — CONFIRMAÇÃO 3/3',
+              'Aviso Final: Esta ação é IRREVERSÍVEL. Deseja realmente ZERAR o estoque completo do sistema?',
+              async () => {
+                setLoading(true);
+                try {
+                  // 1. Buscar todos os pneus para obter caminhos de imagens
+                  const { data: allPneus, error: fetchError } = await supabase.from('pneus').select('id, imagem_url');
+                  if (fetchError) throw new Error(`Erro ao buscar pneus: ${fetchError.message}`);
+
+                  // 2. Remover imagens do Storage
+                  if (allPneus && allPneus.length > 0) {
+                    const storagePaths: string[] = [];
+                    allPneus.forEach((p: any) => {
+                      if (p.imagem_url) {
+                        const path = getStoragePathFromUrl(p.imagem_url, 'pneus');
+                        if (path) storagePaths.push(path);
+                      }
+                    });
+                    if (storagePaths.length > 0) {
+                      await supabase.storage.from('pneus').remove(storagePaths);
+                    }
+                  }
+
+                  // 3. Deletar TODAS as linhas da tabela pneus
+                  const { error: deleteError } = await supabase.from('pneus').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                  if (deleteError) throw new Error(`Erro ao limpar tabela de pneus: ${deleteError.message}`);
+
+                  // 4. Atualizar estado React
+                  setPneus([]);
+                  await logActivity('Estoque', `ZEROU o estoque completo — ${allPneus?.length || 0} pneus e imagens removidos.`);
+                  showToast(`Estoque zerado com sucesso! ${allPneus?.length || 0} pneus removidos.`);
+                } catch (err: any) {
+                  console.error('[zerarEstoque] Erro:', err);
+                  showToast(err.message || 'Erro ao zerar estoque.', 'erro');
+                } finally {
+                  setLoading(false);
+                }
+              }
+            );
+          }
+        );
+      }
+    );
+  };
+
+  const downloadTemplateCsv = () => {
+    const headers = 'nome,marca,categoria,largura,perfil,aro,preco_a_vista,quantidade_estoque';
+    const exampleRow = 'Pneu Exemplo Borrachudo,Marca Premium,Borrachudo,295,80,22.5,1299.90,10';
+    const csvContent = `${headers}\n${exampleRow}`;
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'template_estoque.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+    showToast('Template CSV baixado! Preencha e reimporte.', 'info');
+  };
+
+  const handleCsvImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setLoading(true);
+    try {
+      const text = await file.text();
+      const lines = text.trim().split('\n');
+      if (lines.length < 2) {
+        throw new Error('O arquivo CSV está vazio ou contém apenas o cabeçalho.');
+      }
+
+      // Ignorar cabeçalho (linha 0) e processar linhas de dados
+      const products: any[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+        if (cols.length < 8 || !cols[0]) continue; // pular linhas vazias ou incompletas
+
+        const nome = cols[0];
+        const marca = cols[1] || 'Sem Marca';
+        const categoria = cols[2] || 'Borrachudo';
+        const largura = parseInt(cols[3]) || 295;
+        const perfil = parseInt(cols[4]) || 80;
+        const aro = cols[5] || '22.5';
+        const preco = parseFloat(cols[6].replace(',', '.')) || 0;
+        const estoque = parseInt(cols[7]) || 0;
+
+        products.push({
+          nome,
+          marca,
+          categoria,
+          medida: `${largura}/${perfil} R${aro}`,
+          largura_mm: largura,
+          perfil_proporcao: perfil,
+          aro_polegadas: aro,
+          sulco_mm: 15,
+          preco_vista: preco,
+          imagem_url: categoria === 'Liso' ? '/pneu_liso.png' : '/pneu_borrachudo.png',
+          visibilidade: 'publico',
+          posicao_destaque: 0,
+          quantidade_estoque: estoque,
+          status_produto: estoque > 0 ? 'ativo' : 'inativo',
+        });
+      }
+
+      if (products.length === 0) {
+        throw new Error('Nenhum produto válido encontrado no CSV. Verifique se o formato está correto.');
+      }
+
+      const { error } = await supabase.from('pneus').insert(products);
+      if (error) throw new Error(`Erro ao inserir produtos em lote: ${error.message}`);
+
+      await logActivity('Estoque', `Importou ${products.length} pneus em massa via CSV.`);
+      showToast(`${products.length} pneus importados com sucesso!`);
+      loadDatabaseData().catch(loadErr => console.error('[handleCsvImport] Erro ao recarregar dados:', loadErr));
+    } catch (err: any) {
+      console.error('[handleCsvImport] Erro:', err);
+      showToast(err.message || 'Erro ao importar CSV.', 'erro');
+    } finally {
+      setLoading(false);
+      if (csvFileInputRef.current) csvFileInputRef.current.value = '';
+    }
+  };
+
   // 4. CRUD de Banners Rotativos
   const saveBanner = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1685,6 +1821,45 @@ export default function CentralDiretoria() {
                   className="px-6 py-3.5 bg-[#E11D48] hover:bg-[#F43F5E] text-white font-extrabold uppercase text-xs tracking-wider transition-all duration-300 rounded-none cursor-pointer"
                 >
                   ➕ Adicionar Pneu
+                </button>
+              </div>
+
+              {/* Barra de Ferramentas em Massa */}
+              <div className="glass-panel rounded-none p-4 border border-gray-900 flex flex-wrap items-center gap-3">
+                <span className="text-[10px] text-gray-500 font-black uppercase tracking-widest mr-auto">Ferramentas em Massa</span>
+
+                <button
+                  onClick={downloadTemplateCsv}
+                  disabled={isLoading}
+                  className="px-4 py-2.5 border border-gray-800 hover:border-gray-600 bg-white/5 hover:bg-white/10 text-white text-[10px] font-black uppercase tracking-wider cursor-pointer transition-all rounded-none flex items-center gap-2 disabled:opacity-50"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                  Baixar Planilha Padrão
+                </button>
+
+                <button
+                  onClick={() => csvFileInputRef.current?.click()}
+                  disabled={isLoading}
+                  className="px-4 py-2.5 border border-green-900/40 hover:border-green-600 bg-green-950/10 hover:bg-green-950/30 text-green-400 text-[10px] font-black uppercase tracking-wider cursor-pointer transition-all rounded-none flex items-center gap-2 disabled:opacity-50"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                  Importar Planilha (CSV)
+                </button>
+                <input
+                  type="file"
+                  accept=".csv"
+                  ref={csvFileInputRef}
+                  onChange={handleCsvImport}
+                  className="hidden"
+                />
+
+                <button
+                  onClick={zerarEstoque}
+                  disabled={isLoading || pneus.length === 0}
+                  className="px-4 py-2.5 border border-red-900/40 hover:border-red-500 bg-red-950/10 hover:bg-red-950/30 text-red-400 hover:text-red-300 text-[10px] font-black uppercase tracking-wider cursor-pointer transition-all rounded-none flex items-center gap-2 disabled:opacity-50"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                  Zerar Todo o Estoque
                 </button>
               </div>
 

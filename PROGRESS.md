@@ -2,6 +2,17 @@
 
 ## 🚀 Status Atual: Painel Protegido — Acesso Restrito por Tabela `administradores`
 
+### ✅ Ferramentas em Massa para Catálogo de Pneus (16/06/2026)
+
+- [x] **Zerar Estoque Completo (Danger Zone com 3 Travas):**
+  - Botão vermelho "Zerar Todo o Estoque" na barra de ferramentas com 3 confirmações sequenciais obrigatórias (1/3, 2/3, 3/3) usando a função `askConfirmation` encadeada.
+  - Executa busca de todas as imagens no Storage, remoção em lote dos arquivos, e depois `DELETE` de todas as linhas da tabela `pneus` no Supabase. O estado React é zerado imediatamente após o sucesso.
+- [x] **Download de Template CSV:**
+  - Botão "Baixar Planilha Padrão" gera e baixa automaticamente o arquivo `template_estoque.csv` com os cabeçalhos exatos do banco (`nome, marca, categoria, largura, perfil, aro, preco_a_vista, quantidade_estoque`) e uma linha de exemplo preenchida.
+- [x] **Importação em Massa via CSV:**
+  - Botão "Importar Planilha (CSV)" permite upload de arquivo `.csv`, parseado com `FileReader` nativo. Linhas são convertidas em objetos e inseridas em lote via `supabase.from('pneus').insert(array)`.
+  - Imagem padrão atribuída automaticamente conforme a categoria (Borrachudo/Liso). Status do produto definido como `ativo` se estoque > 0 ou `inativo` se estoque = 0.
+
 ### ✅ Sistema de Gestão de Estoque Profissional e Deduplicação (16/06/2026)
 
 - [x] **Deduplicação de Registros (Database Audit):**
