@@ -6,6 +6,7 @@
 
 - [x] **Campo `hero_ativo` no Supabase:**
   - Adicionado campo booleano `hero_ativo` com default `FALSE` na tabela `configuracoes` para controlar a exibição da seção principal.
+  - Criada a migration isolada `migration_add_hero_toggle.sql` no diretório raiz do projeto.
 - [x] **Interface Condicional no Painel Administrativo:**
   - Adicionado interruptor Switch/Toggle "Ativar Hero Banner na Vitrine" na seção "HERO CONFIG".
   - Entradas de texto "Título Principal do Hero" e "Subtítulo do Hero" agora são renderizadas condicionalmente e só aparecem se o interruptor estiver ligado (true).

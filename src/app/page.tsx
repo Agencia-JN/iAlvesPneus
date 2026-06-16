@@ -282,6 +282,42 @@ export default function Home() {
         tempoTransicao={configs.banner_tempo_transicao}
       />
 
+      {/* ═══ HERO BANNER CONDICIONAL ═══ */}
+      {configs.hero_ativo && (
+        <section className="relative w-full py-16 sm:py-24 bg-[#09090A] border-b border-gray-900 overflow-hidden">
+          {/* Luz de fundo sutil vermelha */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(220,38,38,0.03),transparent_60%)] pointer-events-none"></div>
+          
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center space-y-6">
+            <span className="inline-block bg-[#DC2626]/10 border border-[#DC2626]/30 text-[#DC2626] text-[10px] font-black px-4 py-1.5 uppercase tracking-widest">
+              iAlves Pneus
+            </span>
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black uppercase tracking-tight text-white leading-tight">
+              {configs.hero_config.titulo}
+            </h1>
+            <p className="max-w-3xl mx-auto text-sm sm:text-base lg:text-lg font-bold text-gray-400 leading-relaxed">
+              {configs.hero_config.subtitulo}
+            </p>
+            <div className="pt-4 flex flex-wrap justify-center gap-4">
+              <a
+                href="#vitrine-produtos"
+                className="px-8 py-3.5 bg-[#DC2626] hover:bg-[#B91C1C] text-white font-extrabold text-xs uppercase tracking-widest transition-all duration-300 rounded-none shadow-lg shadow-[#DC2626]/10"
+              >
+                Conhecer Produtos
+              </a>
+              <a
+                href={getWhatsappLink(configs.whatsapp_numero)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-8 py-3.5 bg-transparent border border-gray-800 hover:border-gray-600 hover:bg-white/5 text-white font-extrabold text-xs uppercase tracking-widest transition-all duration-300 rounded-none"
+              >
+                Falar com Vendedor
+              </a>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ═══ VITRINE DE PRODUTOS ═══ */}
       <main id="vitrine-produtos" className="bg-[#0B0B0C] w-full">
         <Vitrine
