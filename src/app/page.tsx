@@ -11,6 +11,7 @@ import type { Pneu } from '@/components/Vitrine';
 // ─── Tipo de Configurações Globais ───────────────────────────────────────────
 interface SiteConfigs {
   whatsapp_numero: string;
+  hero_ativo?: boolean;
   header_config: {
     logo_url: string;
     aviso_topo: string;
@@ -43,6 +44,7 @@ interface SiteConfigs {
 // ─── Estado inicial — valores vazios para evitar flash no mount ────────────
 const CONFIGS_DEFAULT: SiteConfigs = {
   whatsapp_numero: '5511999999999',
+  hero_ativo: false,
   header_config: {
     logo_url: '/logoiAlves.png',
     aviso_topo: '🔥 OFERTA DE INAUGURAÇÃO: FRETE GRÁTIS PARA COMPRAS ACIMA DE 4 PNEUS!',
@@ -101,6 +103,7 @@ export default function Home() {
 
           setConfigs({
             whatsapp_numero: configData.whatsapp_numero || CONFIGS_DEFAULT.whatsapp_numero,
+            hero_ativo: configData.hero_ativo === true,
             header_config: {
               logo_url: h.logo_url || CONFIGS_DEFAULT.header_config.logo_url,
               aviso_topo: h.aviso_topo || CONFIGS_DEFAULT.header_config.aviso_topo,

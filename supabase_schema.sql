@@ -126,6 +126,7 @@ CREATE TABLE IF NOT EXISTS configuracoes (
     direitos_reservados TEXT DEFAULT 'iAlves Pneus',
     logo_url TEXT DEFAULT '/logoiAlves.png',
     banner_tempo_transicao INTEGER DEFAULT 6,
+    hero_ativo BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -150,7 +151,8 @@ INSERT INTO configuracoes (
     cnpj, 
     direitos_reservados,
     logo_url,
-    banner_tempo_transicao
+    banner_tempo_transicao,
+    hero_ativo
 ) VALUES (
     1,
     '5511999999999',
@@ -171,13 +173,15 @@ INSERT INTO configuracoes (
     '00.000.000/0001-00',
     'iAlves Pneus',
     '/logoiAlves.png',
-    6
+    6,
+    FALSE
 )
 ON CONFLICT (id) DO UPDATE SET
     whatsapp_numero = EXCLUDED.whatsapp_numero,
     hero_titulo = EXCLUDED.hero_titulo,
     hero_subtitulo = EXCLUDED.hero_subtitulo,
-    banner_tempo_transicao = EXCLUDED.banner_tempo_transicao;
+    banner_tempo_transicao = EXCLUDED.banner_tempo_transicao,
+    hero_ativo = EXCLUDED.hero_ativo;
 
 
 -- ═══════════════════════════════════════════════════════════════════

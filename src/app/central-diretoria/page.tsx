@@ -57,6 +57,7 @@ interface Configuracoes {
   footer_config?: FooterConfig;
   features_config?: FeaturesConfig;
   banner_tempo_transicao?: number;
+  hero_ativo?: boolean;
 }
 
 interface Afiliado {
@@ -135,6 +136,7 @@ export default function CentralDiretoria() {
     gemini_api_key: '',
     groq_api_key: '',
     horarios_postagem: ['08:00', '14:00', '20:00'],
+    hero_ativo: false,
     header_config: {
       logo_url: '/logoiAlves.png',
       aviso_topo: '🔥 OFERTA DE INAUGURAÇÃO: FRETE GRÁTIS PARA COMPRAS ACIMA DE 4 PNEUS!',
@@ -555,6 +557,7 @@ export default function CentralDiretoria() {
           gemini_api_key: configData.gemini_api_key || '',
           groq_api_key: configData.groq_api_key || '',
           horarios_postagem: configData.horarios_postagem || [],
+          hero_ativo: configData.hero_ativo === true,
           header_config: {
             logo_url: configData.header_config?.logo_url || '/logoiAlves.png',
             aviso_topo: configData.header_config?.aviso_topo || '🔥 OFERTA DE INAUGURAÇÃO: FRETE GRÁTIS PARA COMPRAS ACIMA DE 4 PNEUS!',
@@ -1317,7 +1320,7 @@ export default function CentralDiretoria() {
       showToast('O número de WhatsApp deve conter o DDD + número (ex: 11 99999-9999).', 'erro');
       return;
     }
-    if (!configs.hero_config?.titulo?.trim()) {
+    if (configs.hero_ativo && !configs.hero_config?.titulo?.trim()) {
       showToast('O título principal do Hero não pode estar vazio.', 'erro');
       return;
     }
@@ -1371,6 +1374,7 @@ export default function CentralDiretoria() {
         features_config: configs.features_config,
         horarios_postagem: configs.horarios_postagem,
         banner_tempo_transicao: configs.banner_tempo_transicao || 6,
+        hero_ativo: configs.hero_ativo || false,
       };
 
       let saveError;
@@ -2176,36 +2180,61 @@ export default function CentralDiretoria() {
                   <h3 className="text-xs font-black uppercase tracking-widest text-[#E11D48] border-b border-gray-900 pb-2">
                     Hero Config (Banner de Entrada da Vitrine)
                   </h3>
-                  <div className="space-y-2">
-                    <label className="block text-[10px] font-bold uppercase text-gray-400">Título Principal do Hero</label>
-                    <input
-                      type="text"
-                      value={configs.hero_config?.titulo || ''}
-                      onChange={(e) => setConfigs({
-                        ...configs,
-                        hero_config: {
-                          ...configs.hero_config!,
-                          titulo: e.target.value
-                        }
-                      })}
-                      className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48]"
-                    />
+
+                  {/* Interruptor de Ativação do Hero */}
+                  <div className="flex items-center justify-between py-2">
+                    <div>
+                      <label className="block text-xs font-black uppercase tracking-widest text-white">Ativar Hero Banner na Vitrine</label>
+                      <p className="text-[9px] text-gray-500 font-bold uppercase mt-1">Habilita ou desabilita a seção de boas-vindas com título e subtítulo no e-commerce.</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={configs.hero_ativo || false}
+                        onChange={(e) => setConfigs({
+                          ...configs,
+                          hero_ativo: e.target.checked
+                        })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#E11D48]"></div>
+                    </label>
                   </div>
-                  <div className="space-y-2">
-                    <label className="block text-[10px] font-bold uppercase text-gray-400">Subtítulo do Hero</label>
-                    <textarea
-                      rows={2}
-                      value={configs.hero_config?.subtitulo || ''}
-                      onChange={(e) => setConfigs({
-                        ...configs,
-                        hero_config: {
-                          ...configs.hero_config!,
-                          subtitulo: e.target.value
-                        }
-                      })}
-                      className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48] text-xs font-semibold"
-                    />
-                  </div>
+
+                  {configs.hero_ativo && (
+                    <>
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-bold uppercase text-gray-400">Título Principal do Hero</label>
+                        <input
+                          type="text"
+                          value={configs.hero_config?.titulo || ''}
+                          onChange={(e) => setConfigs({
+                            ...configs,
+                            hero_config: {
+                              ...configs.hero_config!,
+                              titulo: e.target.value
+                            }
+                          })}
+                          className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48]"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-bold uppercase text-gray-400">Subtítulo do Hero</label>
+                        <textarea
+                          rows={2}
+                          value={configs.hero_config?.subtitulo || ''}
+                          onChange={(e) => setConfigs({
+                            ...configs,
+                            hero_config: {
+                              ...configs.hero_config!,
+                              subtitulo: e.target.value
+                            }
+                          })}
+                          className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48] text-xs font-semibold"
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* BLOCO 3: FOOTER CONFIG */}

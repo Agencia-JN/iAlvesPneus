@@ -2,6 +2,17 @@
 
 ## 🚀 Status Atual: Painel Protegido — Acesso Restrito por Tabela `administradores`
 
+### ✅ Controle de Exibição do Hero na Vitrine (16/06/2026)
+
+- [x] **Campo `hero_ativo` no Supabase:**
+  - Adicionado campo booleano `hero_ativo` com default `FALSE` na tabela `configuracoes` para controlar a exibição da seção principal.
+- [x] **Interface Condicional no Painel Administrativo:**
+  - Adicionado interruptor Switch/Toggle "Ativar Hero Banner na Vitrine" na seção "HERO CONFIG".
+  - Entradas de texto "Título Principal do Hero" e "Subtítulo do Hero" agora são renderizadas condicionalmente e só aparecem se o interruptor estiver ligado (true).
+  - Validação de título no salvamento agora só é exigida caso o Hero esteja ativo.
+- [x] **Renderização Dinâmica na Vitrine Pública:**
+  - Página principal do e-commerce consome o estado `hero_ativo` e exibe condicionalmente o banner/seção de Hero com tipografia industrial premium.
+
 ### ✅ Ferramentas em Massa para Catálogo de Pneus (16/06/2026)
 
 - [x] **Zerar Estoque Completo (Danger Zone com 3 Travas):**
