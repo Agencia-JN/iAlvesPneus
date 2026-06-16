@@ -206,6 +206,21 @@ export default function CentralDiretoria() {
   const [statusMsg, setStatusMsg] = useState<{ type: 'sucesso' | 'erro'; text: string } | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
+  // Monitor de recursos
+  const [dbSize, setDbSize] = useState<string>('Calculando...');
+  const [removingLogo, setRemovingLogo] = useState(false);
+
+  const getStoragePathFromUrl = (url: string, bucketName: string): string | null => {
+    if (!url) return null;
+    const cleanUrl = url.split('?')[0];
+    const matchStr = `/${bucketName}/`;
+    const index = cleanUrl.indexOf(matchStr);
+    if (index !== -1) {
+      return cleanUrl.substring(index + matchStr.length);
+    }
+    return null;
+  };
+
   // Referências dos inputs de arquivos
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bannerFileInputRef = useRef<HTMLInputElement>(null);
@@ -530,16 +545,28 @@ export default function CentralDiretoria() {
             : 6,
         });
       }
-
       // 6. Administradores
       const adminsRes = results[7];
-      if (adminsRes.status === 'fulfilled' && adminsRes.value.data) {
+      if (adminsRes && adminsRes.status === 'fulfilled' && adminsRes.value.data) {
         setListaAdmins(adminsRes.value.data.map((a: any) => ({
           id: a.id,
           email: a.email,
           role: a.role || 'ADMIN',
           status: a.status
         })));
+      }
+
+      // 9. Tamanho do banco de dados (RPC get_db_size)
+      try {
+        const { data: sizeData, error: sizeErr } = await supabase.rpc('get_db_size');
+        if (!sizeErr && sizeData) {
+          setDbSize(sizeData);
+        } else {
+          setDbSize('N/A');
+        }
+      } catch (rpcErr) {
+        console.error('Erro ao executar RPC get_db_size:', rpcErr);
+        setDbSize('N/A');
       }
     } catch (e) {
       console.error('Erro ao carregar dados do Supabase:', e);
@@ -680,6 +707,54 @@ export default function CentralDiretoria() {
     }
   };
 
+  const removeLogo = async () => {
+    const logoUrl = configs.header_config?.logo_url;
+    if (!logoUrl || logoUrl === '/logoiAlves.png') {
+      showToast('Nenhum logotipo customizado para remover.', 'info');
+      return;
+    }
+
+    askConfirmation(
+      'Remover Logotipo',
+      'Deseja realmente remover o logotipo customizado e restaurar o logotipo padrão? O arquivo antigo será excluído do Storage.',
+      async () => {
+        setRemovingLogo(true);
+        try {
+          const path = getStoragePathFromUrl(logoUrl, 'banners');
+          if (path) {
+            await supabase.storage.from('banners').remove([path]);
+          }
+
+          const newHeaderConfig = {
+            logo_url: '/logoiAlves.png',
+            aviso_topo: configs.header_config?.aviso_topo ?? '',
+            aviso_ativo: configs.header_config?.aviso_ativo ?? true,
+          };
+
+          const { error } = await supabase
+            .from('configuracoes')
+            .update({ header_config: newHeaderConfig })
+            .eq('id', 1);
+
+          if (error) throw error;
+
+          setConfigs((prev) => ({
+            ...prev,
+            header_config: newHeaderConfig
+          }));
+
+          showToast('Logotipo removido e restaurado para o padrão!');
+          await logActivity('Configurações', 'Removeu o logotipo personalizado.');
+        } catch (err: any) {
+          console.error(err);
+          showToast(err.message || 'Erro ao remover logotipo.', 'erro');
+        } finally {
+          setRemovingLogo(false);
+        }
+      }
+    );
+  };
+
   // Compressão Nativa WebP (Pneu)
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -795,8 +870,8 @@ export default function CentralDiretoria() {
 
       if (pneuForm.imagem_file) {
         // Remove antiga se estiver editando e se for do storage
-        if (editingPneu?.imagem_url && editingPneu.imagem_url.includes('/storage/v1/object/public/pneus/')) {
-          const oldRelativePath = editingPneu.imagem_url.split('/pneus/')[1]?.split('?')[0];
+        if (editingPneu?.imagem_url) {
+          const oldRelativePath = getStoragePathFromUrl(editingPneu.imagem_url, 'pneus');
           if (oldRelativePath) {
             await supabase.storage.from('pneus').remove([oldRelativePath]);
           }
@@ -867,10 +942,10 @@ export default function CentralDiretoria() {
       async () => {
         setLoading(true);
         try {
-          if (pneuToDelete?.imagem_url && pneuToDelete.imagem_url.includes('/storage/v1/object/public/pneus/')) {
-            const relativePath = pneuToDelete.imagem_url.split('/pneus/')[1];
-            if (relativePath) {
-              await supabase.storage.from('pneus').remove([relativePath]);
+          if (pneuToDelete?.imagem_url) {
+            const path = getStoragePathFromUrl(pneuToDelete.imagem_url, 'pneus');
+            if (path) {
+              await supabase.storage.from('pneus').remove([path]);
             }
           }
 
@@ -902,8 +977,8 @@ export default function CentralDiretoria() {
 
       if (bannerForm.imagem_file) {
         // Remove antiga se estiver editando e se for do storage
-        if (editingBanner?.imagem_url && editingBanner.imagem_url.includes('/storage/v1/object/public/banners/')) {
-          const oldRelativePath = editingBanner.imagem_url.split('/banners/')[1]?.split('?')[0];
+        if (editingBanner?.imagem_url) {
+          const oldRelativePath = getStoragePathFromUrl(editingBanner.imagem_url, 'banners');
           if (oldRelativePath) {
             await supabase.storage.from('banners').remove([oldRelativePath]);
           }
@@ -971,11 +1046,10 @@ export default function CentralDiretoria() {
         try {
           const bannerToDelete = banners.find((b) => b.id === id);
 
-          // Remove o arquivo físico do bucket 'banners' (se foi gerado pelo storage)
-          if (bannerToDelete?.imagem_url && bannerToDelete.imagem_url.includes('/storage/v1/object/public/banners/')) {
-            const relativePath = bannerToDelete.imagem_url.split('/banners/')[1];
-            if (relativePath) {
-              await supabase.storage.from('banners').remove([relativePath]);
+          if (bannerToDelete?.imagem_url) {
+            const path = getStoragePathFromUrl(bannerToDelete.imagem_url, 'banners');
+            if (path) {
+              await supabase.storage.from('banners').remove([path]);
             }
           }
 
@@ -1440,6 +1514,41 @@ export default function CentralDiretoria() {
           >
             🔐 Gestão de Acesso
           </button>
+
+          {/* Monitor de Uso de Recursos */}
+          <div className="pt-6 border-t border-gray-900 space-y-4">
+            <p className="text-[10px] text-gray-600 font-black uppercase tracking-widest px-3">Monitor de Recursos</p>
+            <div className="glass-panel p-4 rounded-none border-l-2 border-l-[#E11D48] bg-black/40 space-y-3">
+              <div>
+                <div className="flex justify-between text-[9px] font-black uppercase tracking-wider text-gray-400">
+                  <span>Banco de Dados</span>
+                  <span className="text-white font-mono">{dbSize}</span>
+                </div>
+                <div className="w-full bg-gray-900 h-1.5 mt-1 relative overflow-hidden">
+                  <div 
+                    className="bg-[#E11D48] h-full transition-all duration-500" 
+                    style={{ width: `${Math.min(100, (parseFloat(dbSize) || 0.1) / 500 * 100)}%` }}
+                  />
+                </div>
+                <p className="text-[8px] text-gray-500 font-bold uppercase mt-1">Limite Plano Free: 500 MB</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-center border-t border-gray-900/60 pt-2.5">
+                <div>
+                  <p className="text-[16px] font-black text-white leading-none">{pneus.length}</p>
+                  <p className="text-[8px] text-gray-500 font-black uppercase tracking-wider mt-1">Pneus</p>
+                </div>
+                <div>
+                  <p className="text-[16px] font-black text-white leading-none">{banners.length}</p>
+                  <p className="text-[8px] text-gray-500 font-black uppercase tracking-wider mt-1">Banners</p>
+                </div>
+              </div>
+
+              <div className="text-[8px] text-gray-500 font-medium leading-normal border-t border-gray-900/60 pt-2.5">
+                <span className="text-amber-500 font-bold">⚠️ Nota:</span> O limite do plano gratuito do Supabase é de 500MB de banco de dados e 1GB de armazenamento de arquivos (Storage).
+              </div>
+            </div>
+          </div>
         </aside>
 
         {/* Área Central de Conteúdo */}
@@ -1672,16 +1781,28 @@ export default function CentralDiretoria() {
                             {configs.header_config?.logo_url || "Nenhum logotipo enviado"}
                           </div>
                         </div>
-                        <label className="inline-flex items-center justify-center px-4 py-2 border border-gray-800 hover:border-gray-600 bg-white/5 text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors text-center w-full">
-                          <span>{uploadingLogo ? 'Enviando...' : 'Fazer Upload de Logo'}</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleLogoUpload}
-                            disabled={uploadingLogo}
-                            className="hidden"
-                          />
-                        </label>
+                        <div className="flex gap-2">
+                          <label className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-gray-800 hover:border-gray-600 bg-white/5 text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors text-center w-full">
+                            <span>{uploadingLogo ? 'Enviando...' : 'Fazer Upload'}</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleLogoUpload}
+                              disabled={uploadingLogo}
+                              className="hidden"
+                            />
+                          </label>
+                          {configs.header_config?.logo_url && configs.header_config.logo_url !== '/logoiAlves.png' && (
+                            <button
+                              type="button"
+                              onClick={removeLogo}
+                              disabled={removingLogo}
+                              className="px-4 py-2 border border-red-950/60 hover:border-red-600 bg-red-950/20 hover:bg-red-950/40 text-red-400 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                            >
+                              {removingLogo ? 'Removendo...' : 'Remover Logo'}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="space-y-4">

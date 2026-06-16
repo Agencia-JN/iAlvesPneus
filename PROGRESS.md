@@ -18,6 +18,13 @@
   - **Banner 100% Clicável:** Envolvida a tag `<Image>` em uma tag `<a>` de redirecionamento, tornando o banner inteiro clicável.
   - **Carrossel Dinâmico e Tempo de Transição:** Adicionada a coluna `banner_tempo_transicao` (padrão: 6 segundos) na tabela `configuracoes` e criado um input numérico nas Configurações Globais do painel administrativo. O carrossel lê dinamicamente esse intervalo para controlar o autoplay.
   - **Limpeza do Banco e Esquemas:** Criado script de migração SQL `add_banner_transition.sql` e atualizado `supabase_schema.sql`. Os campos de título, subtítulo e botão de banner agora são totalmente ignorados, deixando o formulário de banners apenas com Upload de Imagem, URL de Redirecionamento e Status Ativo.
+- [x] **Arquitetura de Limpeza de Armazenamento e Monitor de Recursos:**
+  - **Política de Hard Delete:** As remoções de Banners, Pneus e Logotipo realizam operações SQL `DELETE` diretas, garantindo que nenhum item apagado permaneça como soft delete.
+  - **Exclusão em Cascata no Storage:** Criado o helper `getStoragePathFromUrl` para extrair com precisão a subpasta e nome do arquivo de buckets públicos (expurgando query strings `?v=...` que causavam falha silenciosa). Ao excluir um pneu, banner ou logo customizado, o arquivo correspondente é excluído do Storage da Supabase em tempo real.
+  - **Remover Logotipo Customizado:** Adicionado o botão "Remover Logo" na área de Configurações do painel para restaurar o logo padrão (`/logoiAlves.png`) e limpar fisicamente o arquivo do bucket `banners`.
+  - **Monitor de Uso (Free Tier Limits):** Criada a RPC `get_db_size()` no Supabase que retorna o tamanho real do banco de dados. Implementamos no Painel Admin (na barra lateral) um monitor em tempo real exibindo o tamanho do banco com uma barra de progresso (limite gratuito de 500MB), a quantidade de pneus e de banners, e avisos sobre limites do plano free.
+  - **Migration script:** Fornecido o script [create_get_db_size_rpc.sql](file:///g:/Desenvolvimento%20Clientes/iAlvesPneus/create_get_db_size_rpc.sql) para inicializar a RPC `get_db_size` no Supabase.
+- [x] **Idempotência no Script SQL:** Revisado `supabase_schema.sql` para incluir instruções `DROP POLICY IF EXISTS` e remover acentos das políticas de banco de dados, prevenindo interrupções em execuções subsequentes.
 
 ### ✅ Otimizações de Performance, Rolagem e Validação (10/06/2026)
 

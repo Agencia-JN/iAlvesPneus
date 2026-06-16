@@ -422,3 +422,12 @@ CREATE POLICY "Leitura publica de afiliados para lookup de codigo"
   ON public.afiliados FOR SELECT
   TO anon, authenticated
   USING (true);
+
+
+-- ═══════════════════════════════════════════════════════════════════
+-- 9. FUNÇÃO RPC PARA MONITORAMENTO DE TAMANHO DO BANCO DE DADOS
+-- ═══════════════════════════════════════════════════════════════════
+CREATE OR REPLACE FUNCTION get_db_size() 
+RETURNS text AS $$ 
+  SELECT pg_size_pretty(pg_database_size(current_database())); 
+$$ LANGUAGE sql SECURITY DEFINER;
