@@ -221,43 +221,47 @@ export default function CentralDiretoria() {
       return;
     }
 
-    // PASSO 1: Verifica a sessão existente IMEDIATAMENTE (cobre o caso de F5/reload)
-    // getSession() lê do storage local — é instantâneo e não depende de eventos
-    supabase.auth.getSession().then(({ data }: { data: { session: any } }) => {
-      const session = data.session;
-      if (session?.user) {
-        // Sessão ativa encontrada: valida permissões sem registrar como novo login
-        checkAuth(false);
-      } else {
-        // Nenhuma sessão: exibe tela de login imediatamente
-        setAuthLoading(false);
-      }
-    }).catch(() => {
+    // Timer de segurança: garante que authLoading nunca fica travado indefinidamente
+    // 8 segundos é tempo suficiente para qualquer query ao Supabase completar
+    const timer = setTimeout(() => {
+      console.warn('[Auth] Timeout de segurança atingido. Liberando authLoading.');
       setAuthLoading(false);
-    });
+    }, 8000);
 
-    // PASSO 2: Escuta apenas eventos FUTUROS de autenticação (login/logout)
-    // INITIAL_SESSION já foi tratado pelo getSession() acima — ignorado aqui
+    // onAuthStateChange é a fonte única da verdade para o estado de sessão.
+    // Cobre TODOS os casos: novo login (SIGNED_IN), F5/reload (INITIAL_SESSION com sessão),
+    // e sem sessão (INITIAL_SESSION sem sessão / SIGNED_OUT).
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event: string, session: any) => {
         console.log('[onAuthStateChange] Auth event:', event, session?.user?.email);
 
-        if (event === 'SIGNED_IN' && session?.user) {
-          // Novo login via OAuth: valida e registra auditoria
-          await checkAuth(true);
+        if (session?.user) {
+          // Sessão detectada — cobre SIGNED_IN (novo login) e INITIAL_SESSION (F5/reload)
+          const isNewLogin = event === 'SIGNED_IN';
+          await checkAuth(isNewLogin);
+          clearTimeout(timer);
         } else if (event === 'SIGNED_OUT') {
           // Logout explícito: limpa todos os estados
           setUserEmail(null);
           setAuthorized(false);
           setUserRole(null);
           setAuthLoading(false);
+          clearTimeout(timer);
+        } else if (event === 'INITIAL_SESSION' && !session?.user) {
+          // Reload sem sessão ativa: exibe tela de login
+          setUserEmail(null);
+          setAuthorized(false);
+          setUserRole(null);
+          setAuthLoading(false);
+          clearTimeout(timer);
         }
-        // TOKEN_REFRESHED, USER_UPDATED, INITIAL_SESSION: ignorados — sessão já gerenciada
+        // TOKEN_REFRESHED, USER_UPDATED: ignorados — não alteram o estado de auth
       }
     );
 
     return () => {
       subscription?.unsubscribe();
+      clearTimeout(timer);
     };
   }, []);
 
