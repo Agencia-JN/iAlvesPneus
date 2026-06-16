@@ -234,20 +234,27 @@ export default function CentralDiretoria() {
         console.log('[onAuthStateChange] Auth event:', event, session?.user?.email);
 
         if (session?.user) {
-          // Sessão detectada: verifica se o e-mail está na tabela administradores
+          // Sessão detectada (login novo, F5, ou retorno de OAuth): verifica permissões
+          // SIGNED_IN = novo login | INITIAL_SESSION = F5/reload com sessão já ativa
           const isNewLogin = event === 'SIGNED_IN';
           await checkAuth(isNewLogin);
           clearTimeout(timer);
-        } else if (event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
+        } else if (event === 'SIGNED_OUT') {
+          // Logout explícito: limpa todos os estados de autenticação
+          setUserEmail(null);
+          setAuthorized(false);
+          setUserRole(null);
+          setAuthLoading(false);
+          clearTimeout(timer);
+        } else if (event === 'INITIAL_SESSION' && !session?.user) {
           // INITIAL_SESSION sem sessão = usuário realmente não está logado
-          // SIGNED_OUT = logout explícito
           setUserEmail(null);
           setAuthorized(false);
           setUserRole(null);
           setAuthLoading(false);
           clearTimeout(timer);
         }
-        // Eventos como TOKEN_REFRESHED, USER_UPDATED etc. sem sessão são ignorados
+        // Eventos como TOKEN_REFRESHED, USER_UPDATED etc. são ignorados aqui
       }
     );
 
@@ -329,8 +336,7 @@ export default function CentralDiretoria() {
         console.log('[checkAuth Debug] Sessão nula ou e-mail ausente. Acesso negado.');
         setAuthorized(false);
         setUserRole(null);
-        setAuthLoading(false);
-        return;
+        return; // finally garante setAuthLoading(false)
       }
 
       const email = session.user.email;
@@ -358,7 +364,7 @@ export default function CentralDiretoria() {
           }
           setUserRole('SUPER_ADMIN');
           setAuthorized(true);
-          loadDatabaseData();
+          loadDatabaseData().catch(e => console.error('[checkAuth] Erro ao carregar dados:', e));
         } else {
           console.log('[checkAuth Debug] Acesso negado devido a erro de banco para usuário comum:', email);
           await supabase.auth.signOut();
@@ -366,7 +372,7 @@ export default function CentralDiretoria() {
           setAuthorized(false);
           setAuthMsg('Erro ao verificar permissões de acesso. Por favor, fale com a diretoria para liberar seu acesso via painel administrativo.');
         }
-        return;
+        return; // finally garante setAuthLoading(false)
       }
 
       if (!adminUser) {
@@ -393,7 +399,7 @@ export default function CentralDiretoria() {
         setUserRole(null);
         setAuthorized(false);
         setAuthMsg('Por favor, fale com a diretoria para liberar seu acesso via painel administrativo.');
-        return;
+        return; // finally garante setAuthLoading(false)
       }
 
       const status = adminUser?.status || 'PENDENTE';
@@ -421,11 +427,17 @@ export default function CentralDiretoria() {
         }
         setUserRole(resolvedRole as 'SUPER_ADMIN' | 'ADMIN');
         setAuthorized(true);
-        loadDatabaseData();
+        // Carrega dados em background sem bloquear o desbloqueio do painel
+        loadDatabaseData().catch(e => console.error('[checkAuth] Erro ao carregar dados iniciais:', e));
       }
     } catch (e) {
       console.error('[checkAuth] Falha de verificação de segurança:', e);
+      // Em caso de exceção inesperada, garante que o painel não fique em loading infinito
+      setAuthorized(false);
+      setUserRole(null);
+      setAuthMsg('Ocorreu um erro inesperado na verificação de acesso. Tente novamente.');
     } finally {
+      // SEMPRE libera o authLoading, independente do caminho percorrido
       setAuthLoading(false);
     }
   };
@@ -803,6 +815,7 @@ export default function CentralDiretoria() {
     }
 
     setLoading(true);
+    let saveSuccess = false;
 
     try {
       let finalImageUrl = pneuForm.imagem_url || '/pneu_borrachudo.png';
@@ -860,13 +873,16 @@ export default function CentralDiretoria() {
       setEditingPneu(null);
       resetPneuForm();
       showToast('Pneu gravado com sucesso no estoque!');
-
-      loadDatabaseData().catch(loadErr => console.error('[savePneu] Erro ao recarregar dados:', loadErr));
+      saveSuccess = true;
     } catch (err: any) {
       console.error('[savePneu] Erro:', err);
       showToast(err.message || 'Falha ao salvar produto no estoque.', 'erro');
     } finally {
+      // SEMPRE desativa o loading; recarrega dados apenas se a opção foi bem-sucedida
       setLoading(false);
+      if (saveSuccess) {
+        loadDatabaseData().catch(loadErr => console.error('[savePneu] Erro ao recarregar dados:', loadErr));
+      }
     }
   };
 
@@ -906,6 +922,8 @@ export default function CentralDiretoria() {
     e.preventDefault();
     setLoading(true);
 
+    let saveSuccess = false;
+
     try {
       let finalImageUrl = bannerForm.imagem_url;
 
@@ -934,9 +952,7 @@ export default function CentralDiretoria() {
       }
 
       if (!finalImageUrl) {
-        alert('Carregue uma imagem para o banner promocional.');
-        setLoading(false);
-        return;
+        throw new Error('Carregue uma imagem para o banner promocional.');
       }
 
       const bannerData = {
@@ -959,15 +975,19 @@ export default function CentralDiretoria() {
       setEditingBanner(null);
       resetBannerForm();
       showToast('Banner rotativo gravado com sucesso!');
-
-      loadDatabaseData().catch(loadErr => console.error('[saveBanner] Erro ao recarregar dados:', loadErr));
+      saveSuccess = true;
     } catch (err: any) {
       console.error('[saveBanner] Erro:', err);
       showToast(err.message || 'Erro desconhecido ao salvar banner.', 'erro');
     } finally {
+      // SEMPRE desativa o loading; recarrega dados apenas se a operação foi bem-sucedida
       setLoading(false);
+      if (saveSuccess) {
+        loadDatabaseData().catch(loadErr => console.error('[saveBanner] Erro ao recarregar dados:', loadErr));
+      }
     }
   };
+
 
   const deleteBanner = async (id: string) => {
     askConfirmation(
@@ -1102,13 +1122,14 @@ export default function CentralDiretoria() {
       }
 
       await logActivity('Configurações', 'Atualizou as configurações globais do site.');
-      loadDatabaseData().catch(loadErr => console.error('[saveConfigs] Erro ao recarregar dados:', loadErr));
     } catch (e: any) {
       console.error(e);
       showToast(e.message || 'Erro ao salvar configurações.', 'erro');
       alert(`Erro ao salvar configurações:\n${e.message || e.details || JSON.stringify(e)}`);
     } finally {
+      // SEMPRE desativa o loading, depois recarrega dados em background
       setLoading(false);
+      loadDatabaseData().catch(loadErr => console.error('[saveConfigs] Erro ao recarregar dados:', loadErr));
     }
   };
 

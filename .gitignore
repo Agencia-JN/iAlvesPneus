@@ -16,6 +16,9 @@ build/
 .env.test.local
 .env.production.local
 .env
+.env.development
+.env.production
+.env.netlify
 
 # misc
 .DS_Store
