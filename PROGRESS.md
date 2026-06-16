@@ -2,6 +2,34 @@
 
 ## 🚀 Status Atual: Painel Protegido — Acesso Restrito por Tabela `administradores`
 
+### ✅ Sistema de Gestão de Estoque Profissional e Deduplicação (16/06/2026)
+
+- [x] **Deduplicação de Registros (Database Audit):**
+  - Identificadas e eliminadas as linhas duplicadas na tabela `pneus` no Supabase (que continham até 6 cópias do mesmo item devido a cliques múltiplos de rede no passado).
+  - Criado o script SQL determinístico [cleanup_duplicates.sql](file:///g:/Desenvolvimento%20Clientes/iAlvesPneus/cleanup_duplicates.sql) que remove os duplicados mantendo o registro original (mais antigo) de forma segura.
+- [x] **Evolução do Banco de Dados (Schema de Estoque):**
+  - Adicionadas as colunas `quantidade_estoque` (INTEGER, padrão 10) e `status_produto` (TEXT, padrão 'ativo') na tabela `pneus`.
+  - Criado o script SQL [upgrade_pneus_inventory.sql](file:///g:/Desenvolvimento%20Clientes/iAlvesPneus/upgrade_pneus_inventory.sql) e atualizado o arquivo mestre `supabase_schema.sql` para garantir a compatibilidade do banco.
+  - Definido estoque inicial de 10 unidades para os pneus existentes para evitar que desapareçam da vitrine após a implantação.
+- [x] **Refatoração Completa do Painel Administrativo:**
+  - **Índice Numérico:** Adicionada a coluna `#` exibindo o índice das linhas (1, 2, 3...) no Catálogo de Pneus para fácil conferência.
+  - **Novos Atributos Visuais:** Adicionadas as colunas "Estoque" (número de pneus) e "Status" (badges coloridos: verde para *Ativo*, vermelho para *Inativo* ou *Esgotado*).
+  - **Modal de Cadastro/Edição:** Incluídos os campos de entrada para "Quantidade em Estoque" (com validação numérica) e seleção de "Status do Produto".
+  - **Regra de Negócio Automatizada:** Ao salvar um pneu com estoque menor ou igual a zero, seu status é alterado automaticamente para `inativo`.
+  - **Ação Principal de Desativação:** Criada a função `toggleStatusPneu` que permite ativar e desativar produtos com um clique rápido de botão na tabela.
+  - **Proteção Rigorosa de Exclusão (Hard Delete Gated):** O botão "Excluir" foi convertido para "Excluir Físico" com estilização discreta. Ele exige dupla confirmação sequencial e rigorosa (Aviso de Exclusão Física 1/2 e Alerta Crítico 2/2) para blindar contra deleções acidentais e arquivos órfãos de mídia.
+- [x] **Atualização do Monitor de Recursos:**
+  - O monitor lateral da diretoria foi atualizado para exibir as métricas de estoque em tempo real: pneus Cadastrados, Ativos, Esgotados e total de Banners promocionais.
+- [x] **Filtragem do Catálogo na Vitrine Pública (E-Commerce):**
+  - Modificada a query de pneus em `src/app/page.tsx` para carregar exclusivamente os itens que tenham `status_produto = 'ativo'` e `quantidade_estoque > 0`. Produtos inativos ou sem estoque são ocultados automaticamente da vitrine de e-commerce.
+- [x] **Organização e Configuração de Favicons (16/06/2026):**
+  - Criada a pasta `public/favicon/` e movidos todos os 7 arquivos de ícones soltos na raiz para dentro dela.
+  - Atualizado o objeto `metadata` no arquivo `src/app/layout.tsx` para mapear os caminhos corretos de `icon`, `apple-touch-icon` e o manifesto (`site.webmanifest`), limpando a raiz do repositório.
+- [x] **Blindagem do Gerenciamento de Banners contra Duplicações e Falhas de Exclusão (16/06/2026):**
+  - **Prevenção de Double-Submit:** O botão "Confirmar Banner" recebeu a propriedade `disabled={isLoading}` (e `isUploading`) para travar cliques duplos durante o processamento da imagem ou gravação no banco de dados.
+  - **Substituição de Estado Sólida:** Confirmada a atribuição exclusiva de arrays limpos via `setBanners(data)` em todo o ciclo de vida do painel admin e home page, eliminando concatenações redundantes.
+  - **Exclusão Segura Reordenada:** Refatorada a função `deleteBanner` para executar rigorosamente o `DELETE` no banco de dados Supabase antes de remover o arquivo do Storage, impedindo órfãos em caso de falha e restaurando o estado da interface via `try/catch`.
+
 ### ✅ Estabilização da Central da Diretoria e Fluxo de Sessão (16/06/2026)
 
 - [x] **Resolução do Loop Infinito no F5:**

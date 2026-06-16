@@ -63,6 +63,8 @@ CREATE TABLE IF NOT EXISTS pneus (
     imagem_url TEXT NOT NULL,
     posicao_destaque INTEGER DEFAULT 0,
     visibilidade TEXT DEFAULT 'publico' CHECK (visibilidade IN ('publico', 'oculto')),
+    quantidade_estoque INTEGER DEFAULT 10,
+    status_produto TEXT DEFAULT 'ativo',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

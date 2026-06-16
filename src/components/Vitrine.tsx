@@ -21,6 +21,8 @@ export interface Pneu {
   imagem_url: string;
   posicao_destaque: number;
   visibilidade?: 'publico' | 'oculto';
+  quantidade_estoque?: number;
+  status_produto?: 'ativo' | 'inativo' | 'esgotado' | string;
 }
 
 const MOCK_PNEUS: Pneu[] = [

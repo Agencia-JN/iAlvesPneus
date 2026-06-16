@@ -94,6 +94,7 @@ export default function CentralDiretoria() {
   const [supabaseActive, setSupabaseActive] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const isLoading = loading;
   const [authLoading, setAuthLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [authMsg, setAuthMsg] = useState<string | null>(null);
@@ -186,6 +187,8 @@ export default function CentralDiretoria() {
     imagem_url: '',
     visibilidade: 'publico' as 'publico' | 'oculto',
     posicao_destaque: '0',
+    quantidade_estoque: '10',
+    status_produto: 'ativo',
   });
 
   // Estados de Modais e CRUD (Banners)
@@ -911,6 +914,12 @@ export default function CentralDiretoria() {
         finalImageUrl = `${publicUrlData.publicUrl}?v=${Date.now()}`;
       }
 
+      const estoqueClean = parseInt(pneuForm.quantidade_estoque) || 0;
+      let statusClean = pneuForm.status_produto || 'ativo';
+      if (estoqueClean <= 0) {
+        statusClean = 'inativo';
+      }
+
       const pneuData = {
         nome: nomeClean,
         marca: marcaClean,
@@ -924,6 +933,8 @@ export default function CentralDiretoria() {
         imagem_url: finalImageUrl,
         visibilidade: pneuForm.visibilidade,
         posicao_destaque: destaqueClean,
+        quantidade_estoque: estoqueClean,
+        status_produto: statusClean,
       };
 
       if (editingPneu) {
@@ -952,33 +963,63 @@ export default function CentralDiretoria() {
     }
   };
 
+  const toggleStatusPneu = async (pneu: TypePneu) => {
+    const novoStatus = pneu.status_produto === 'ativo' ? 'inativo' : 'ativo';
+    const novoEstoque = novoStatus === 'ativo' && (pneu.quantidade_estoque ?? 0) <= 0 ? 10 : (pneu.quantidade_estoque ?? 0);
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('pneus')
+        .update({ status_produto: novoStatus, quantidade_estoque: novoEstoque })
+        .eq('id', pneu.id);
+      if (error) throw new Error(`Erro ao alterar status: ${error.message}`);
+
+      await logActivity('Estoque', `${novoStatus === 'ativo' ? 'Ativou' : 'Desativou'} o pneu "${pneu.nome}" (${pneu.marca}).`);
+      showToast(`Pneu ${novoStatus === 'ativo' ? 'ativado' : 'desativado'} com sucesso!`);
+      loadDatabaseData().catch(loadErr => console.error('[toggleStatusPneu] Erro ao recarregar dados:', loadErr));
+    } catch (err: any) {
+      console.error('[toggleStatusPneu] Erro:', err);
+      showToast(err.message || 'Erro ao alterar status.', 'erro');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const deletePneu = async (id: string) => {
     const pneuToDelete = pneus.find((p) => p.id === id);
+    // Confirmação Nível 1
     askConfirmation(
-      'Confirmar Exclusão',
-      `Deseja realmente excluir permanentemente o pneu "${pneuToDelete?.nome || 'este pneu'}"? Isso removerá o arquivo do Storage.`,
-      async () => {
-        setLoading(true);
-        try {
-          if (pneuToDelete?.imagem_url) {
-            const path = getStoragePathFromUrl(pneuToDelete.imagem_url, 'pneus');
-            if (path) {
-              await supabase.storage.from('pneus').remove([path]);
+      'EXCLUSÃO FISICA - CONFIRMAÇÃO 1/2',
+      `Deseja realmente excluir permanentemente o pneu "${pneuToDelete?.nome || 'este pneu'}"? Recomendamos apenas desativar o produto para não quebrar históricos. Se prosseguir, a imagem será apagada do Storage.`,
+      () => {
+        // Confirmação Nível 2 (Rigorosa)
+        askConfirmation(
+          '⚠️ ALERTA CRÍTICO - CONFIRMAÇÃO 2/2',
+          `Esta ação é IRREVERSÍVEL! O pneu "${pneuToDelete?.nome}" será apagado do banco de dados definitivamente. Confirmar exclusão permanente?`,
+          async () => {
+            setLoading(true);
+            try {
+              if (pneuToDelete?.imagem_url) {
+                const path = getStoragePathFromUrl(pneuToDelete.imagem_url, 'pneus');
+                if (path) {
+                  await supabase.storage.from('pneus').remove([path]);
+                }
+              }
+
+              const { error } = await supabase.from('pneus').delete().eq('id', id);
+              if (error) throw new Error(`Erro ao deletar pneu: ${error.message}`);
+
+              await logActivity('Estoque', `Removeu permanentemente o pneu "${pneuToDelete?.nome || id}" (${pneuToDelete?.marca || 'Desconhecida'}).`);
+              showToast('Pneu eliminado definitivamente com sucesso!');
+              loadDatabaseData().catch(loadErr => console.error('[deletePneu] Erro ao recarregar dados:', loadErr));
+            } catch (err: any) {
+              console.error('[deletePneu] Erro:', err);
+              showToast(err.message || 'Erro ao remover pneu.', 'erro');
+            } finally {
+              setLoading(false);
             }
           }
-
-          const { error } = await supabase.from('pneus').delete().eq('id', id);
-          if (error) throw new Error(`Erro ao deletar pneu: ${error.message}`);
-
-          await logActivity('Estoque', `Removeu o pneu "${pneuToDelete?.nome || id}" (${pneuToDelete?.marca || 'Desconhecida'}).`);
-          showToast('Pneu eliminado com sucesso!');
-          loadDatabaseData().catch(loadErr => console.error('[deletePneu] Erro ao recarregar dados:', loadErr));
-        } catch (err: any) {
-          console.error('[deletePneu] Erro:', err);
-          showToast(err.message || 'Erro ao remover pneu.', 'erro');
-        } finally {
-          setLoading(false);
-        }
+        );
       }
     );
   };
@@ -1064,6 +1105,11 @@ export default function CentralDiretoria() {
         try {
           const bannerToDelete = banners.find((b) => b.id === id);
 
+          // 1. Delete row from the database first
+          const { error } = await supabase.from('banners').delete().eq('id', id);
+          if (error) throw new Error(`Erro ao deletar banner do banco: ${error.message}`);
+
+          // 2. Only if DB deletion succeeds, remove the file from Storage
           if (bannerToDelete?.imagem_url) {
             const path = getStoragePathFromUrl(bannerToDelete.imagem_url, 'banners');
             if (path) {
@@ -1071,11 +1117,8 @@ export default function CentralDiretoria() {
             }
           }
 
-          const { error } = await supabase.from('banners').delete().eq('id', id);
-          if (error) throw new Error(`Erro ao deletar banner: ${error.message}`);
-
           await logActivity('Banners', `Removeu o banner rotativo (ID: ${id}).`);
-          showToast('Banner rotativo deletado da base e do Storage!');
+          showToast('Banner rotativo deletado com sucesso!');
           loadDatabaseData().catch(loadErr => console.error('[deleteBanner] Erro ao recarregar dados:', loadErr));
         } catch (err: any) {
           console.error('[deleteBanner] Erro:', err);
@@ -1334,6 +1377,8 @@ export default function CentralDiretoria() {
       imagem_url: '',
       visibilidade: 'publico',
       posicao_destaque: '0',
+      quantidade_estoque: '10',
+      status_produto: 'ativo',
     });
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -1364,6 +1409,8 @@ export default function CentralDiretoria() {
       imagem_url: pneu.imagem_url,
       visibilidade: pneu.visibilidade || 'publico',
       posicao_destaque: String(pneu.posicao_destaque || 0),
+      quantidade_estoque: String(pneu.quantidade_estoque !== undefined ? pneu.quantidade_estoque : 10),
+      status_produto: pneu.status_produto || 'ativo',
     });
     setShowPneuModal(true);
   };
@@ -1551,14 +1598,26 @@ export default function CentralDiretoria() {
                 <p className="text-[8px] text-gray-500 font-bold uppercase mt-1">Limite Plano Free: 500 MB</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-center border-t border-gray-900/60 pt-2.5">
+              <div className="grid grid-cols-2 gap-3 text-center border-t border-gray-900/60 pt-2.5">
                 <div>
-                  <p className="text-[16px] font-black text-white leading-none">{pneus.length}</p>
-                  <p className="text-[8px] text-gray-500 font-black uppercase tracking-wider mt-1">Pneus</p>
+                  <p className="text-[15px] font-black text-white leading-none">{pneus.length}</p>
+                  <p className="text-[7.5px] text-gray-500 font-black uppercase tracking-wider mt-1">Cadastrados</p>
                 </div>
                 <div>
-                  <p className="text-[16px] font-black text-white leading-none">{banners.length}</p>
-                  <p className="text-[8px] text-gray-500 font-black uppercase tracking-wider mt-1">Banners</p>
+                  <p className="text-[15px] font-black text-green-400 leading-none">
+                    {pneus.filter(p => p.status_produto === 'ativo' && (p.quantidade_estoque ?? 0) > 0).length}
+                  </p>
+                  <p className="text-[7.5px] text-gray-500 font-black uppercase tracking-wider mt-1">Ativos</p>
+                </div>
+                <div>
+                  <p className="text-[15px] font-black text-red-400 leading-none">
+                    {pneus.filter(p => (p.quantidade_estoque ?? 0) === 0).length}
+                  </p>
+                  <p className="text-[7.5px] text-gray-500 font-black uppercase tracking-wider mt-1">Esgotados</p>
+                </div>
+                <div>
+                  <p className="text-[15px] font-black text-white leading-none">{banners.length}</p>
+                  <p className="text-[7.5px] text-gray-500 font-black uppercase tracking-wider mt-1">Banners</p>
                 </div>
               </div>
 
@@ -1604,9 +1663,10 @@ export default function CentralDiretoria() {
               </div>
 
               <div className="glass-panel rounded-none overflow-hidden overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[900px]">
+                <table className="w-full text-left border-collapse min-w-[1000px]">
                   <thead>
                     <tr className="bg-white/5 text-[10px] text-gray-400 font-black uppercase tracking-widest border-b border-gray-900">
+                      <th className="p-4 w-12 text-center">#</th>
                       <th className="p-4">Foto</th>
                       <th className="p-4">Marca / Nome</th>
                       <th className="p-4">Categoria</th>
@@ -1615,56 +1675,77 @@ export default function CentralDiretoria() {
                       <th className="p-4">Perfil</th>
                       <th className="p-4">Aro</th>
                       <th className="p-4">Preço à Vista</th>
-                      <th className="p-4">Status</th>
+                      <th className="p-4 text-center">Estoque</th>
+                      <th className="p-4 text-center">Status</th>
                       <th className="p-4 text-center">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-900 text-xs">
-                    {pneus.map((pneu) => (
-                      <tr key={pneu.id} className="hover:bg-white/2 transition-colors">
-                        <td className="p-4">
-                          <div className="relative w-12 h-12 bg-black border border-gray-800 p-1 flex items-center justify-center">
-                            <Image src={pneu.imagem_url} alt={pneu.nome} width={40} height={40} unoptimized className="object-contain max-h-full" />
-                          </div>
-                        </td>
-                        <td className="p-4 font-extrabold text-white">
-                          <span className="block text-[9px] text-gray-500 font-bold uppercase">{pneu.marca}</span>
-                          {pneu.nome}
-                        </td>
-                        <td className="p-4 font-semibold text-gray-300">{pneu.categoria}</td>
-                        <td className="p-4 font-black text-[#E11D48]">{pneu.medida}</td>
-                        <td className="p-4 font-semibold text-gray-300">{pneu.largura_mm || 295} mm</td>
-                        <td className="p-4 font-semibold text-gray-300">{pneu.perfil_proporcao || 80}%</td>
-                        <td className="p-4 font-semibold text-gray-300">R{pneu.aro_polegadas || '22.5'}</td>
-                        <td className="p-4 font-black text-white">{formatCurrency(pneu.preco_vista)}</td>
-                        <td className="p-4">
-                          <span className={`inline-block text-[9px] font-black uppercase px-2 py-0.5 border ${
-                            pneu.visibilidade === 'oculto' ? 'bg-red-950/20 border-red-900/30 text-red-500' : 'bg-green-950/20 border-green-900/30 text-green-500'
-                          }`}>
-                            {pneu.visibilidade || 'publico'}
-                          </span>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => openEditModal(pneu)}
-                              className="px-3 py-1.5 border border-gray-800 hover:border-gray-600 bg-white/5 text-xs font-bold uppercase tracking-wider cursor-pointer"
-                            >
-                              Editar
-                            </button>
-                            <button
-                              onClick={() => deletePneu(pneu.id)}
-                              className="px-3 py-1.5 border border-red-950 bg-red-950/10 hover:bg-red-900/30 text-red-400 text-xs font-bold uppercase tracking-wider cursor-pointer"
-                            >
-                              Excluir
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                    {pneus.map((pneu, index) => {
+                      const isProductActive = pneu.status_produto === 'ativo' && (pneu.quantidade_estoque ?? 0) > 0;
+                      return (
+                        <tr key={pneu.id} className="hover:bg-white/2 transition-colors">
+                          <td className="p-4 text-center text-gray-500 font-bold">{index + 1}</td>
+                          <td className="p-4">
+                            <div className="relative w-12 h-12 bg-black border border-gray-800 p-1 flex items-center justify-center">
+                              <Image src={pneu.imagem_url} alt={pneu.nome} width={40} height={40} unoptimized className="object-contain max-h-full" />
+                            </div>
+                          </td>
+                          <td className="p-4 font-extrabold text-white">
+                            <span className="block text-[9px] text-gray-500 font-bold uppercase">{pneu.marca}</span>
+                            {pneu.nome}
+                          </td>
+                          <td className="p-4 font-semibold text-gray-300">{pneu.categoria}</td>
+                          <td className="p-4 font-black text-[#E11D48]">{pneu.medida}</td>
+                          <td className="p-4 font-semibold text-gray-300">{pneu.largura_mm || 295} mm</td>
+                          <td className="p-4 font-semibold text-gray-300">{pneu.perfil_proporcao || 80}%</td>
+                          <td className="p-4 font-semibold text-gray-300">R{pneu.aro_polegadas || '22.5'}</td>
+                          <td className="p-4 font-black text-white">{formatCurrency(pneu.preco_vista)}</td>
+                          <td className="p-4 text-center font-bold text-gray-200">
+                            {pneu.quantidade_estoque !== undefined ? pneu.quantidade_estoque : 10}
+                          </td>
+                          <td className="p-4 text-center">
+                            <span className={`inline-block text-[9px] font-black uppercase px-2 py-0.5 border ${
+                              isProductActive 
+                                ? 'bg-green-950/20 border-green-900/30 text-green-500' 
+                                : 'bg-red-950/20 border-red-900/30 text-red-500'
+                            }`}>
+                              {isProductActive ? 'Ativo' : (pneu.quantidade_estoque ?? 0) === 0 ? 'Esgotado' : 'Inativo'}
+                            </span>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => openEditModal(pneu)}
+                                className="px-3 py-1.5 border border-gray-800 hover:border-gray-600 bg-white/5 text-xs font-bold uppercase tracking-wider cursor-pointer"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                onClick={() => toggleStatusPneu(pneu)}
+                                className={`px-3 py-1.5 border text-xs font-bold uppercase tracking-wider cursor-pointer ${
+                                  pneu.status_produto === 'ativo'
+                                    ? 'border-amber-950 bg-amber-950/10 hover:bg-amber-900/30 text-amber-400'
+                                    : 'border-green-950 bg-green-950/10 hover:bg-green-900/30 text-green-400'
+                                }`}
+                              >
+                                {pneu.status_produto === 'ativo' ? 'Desativar' : 'Ativar'}
+                              </button>
+                              <button
+                                onClick={() => deletePneu(pneu.id)}
+                                className="px-2 py-1.5 text-gray-600 hover:text-red-500 text-[10px] font-bold uppercase tracking-wider cursor-pointer border border-transparent hover:border-red-900/20 rounded-none bg-transparent"
+                                title="Excluir permanentemente do banco e storage"
+                              >
+                                Excluir Físico
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                     {pneus.length === 0 && (
                       <tr>
-                        <td colSpan={10} className="p-8 text-center text-gray-500 font-bold uppercase tracking-wide">
+                        <td colSpan={12} className="p-8 text-center text-gray-500 font-bold uppercase tracking-wide">
                           Estoque físico vazio no momento.
                         </td>
                       </tr>
@@ -2703,6 +2784,31 @@ export default function CentralDiretoria() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="block text-[9px] text-gray-400 font-black uppercase tracking-wider">Quantidade em Estoque</label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={pneuForm.quantidade_estoque}
+                    onChange={(e) => setPneuForm({ ...pneuForm, quantidade_estoque: e.target.value })}
+                    className="w-full bg-black border border-gray-800 px-3 py-2 text-xs rounded-none text-white focus:outline-none focus:border-[#E11D48]"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[9px] text-gray-400 font-black uppercase tracking-wider">Status do Produto</label>
+                  <select
+                    value={pneuForm.status_produto}
+                    onChange={(e) => setPneuForm({ ...pneuForm, status_produto: e.target.value })}
+                    className="w-full bg-black border border-gray-800 px-3 py-2 text-xs rounded-none text-white focus:outline-none focus:border-[#E11D48]"
+                  >
+                    <option value="ativo">Ativo na Vitrine</option>
+                    <option value="inativo">Inativo / Oculto</option>
+                  </select>
+                </div>
+              </div>
+
               {/* TRÊS NOVAS COLUNAS DE BUSCA TÉCNICA SEPARADAS */}
               <div className="grid grid-cols-3 gap-2.5 p-3.5 bg-black/40 border border-gray-900 rounded-none">
                 <div className="space-y-1">
@@ -2904,7 +3010,7 @@ export default function CentralDiretoria() {
               <div className="flex items-center gap-3 pt-4 border-t border-gray-900">
                 <button
                   type="submit"
-                  disabled={isUploading || loading}
+                  disabled={isUploading || isLoading}
                   className="flex-1 px-4 py-3 bg-[#E11D48] hover:bg-[#F43F5E] text-white font-extrabold uppercase text-xs tracking-wider transition-all rounded-none cursor-pointer text-center disabled:opacity-60 flex items-center justify-center gap-2"
                 >
                   {loading ? (

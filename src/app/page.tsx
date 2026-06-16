@@ -89,7 +89,7 @@ export default function Home() {
     Promise.all([
       supabase.from('configuracoes').select('*').eq('id', 1).maybeSingle(),
       supabase.from('banners').select('*').eq('ativo', true).order('ordem', { ascending: true }),
-      supabase.from('pneus').select('*').eq('visibilidade', 'publico').order('posicao_destaque', { ascending: false }),
+      supabase.from('pneus').select('*').eq('visibilidade', 'publico').eq('status_produto', 'ativo').gt('quantidade_estoque', 0).order('posicao_destaque', { ascending: false }),
     ])
       .then(([{ data: configData }, { data: bannerData }, { data: pneusData }]) => {
         // 1. Configs
