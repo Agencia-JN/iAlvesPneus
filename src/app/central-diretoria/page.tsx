@@ -221,46 +221,43 @@ export default function CentralDiretoria() {
       return;
     }
 
-    // Force loading to false after 2 seconds to prevent infinite load if DB hangs or fails
-    const timer = setTimeout(() => {
-      console.log('[Auth Debug] Tempo limite de 2 segundos atingido. Forçando loading para false.');
+    // PASSO 1: Verifica a sessão existente IMEDIATAMENTE (cobre o caso de F5/reload)
+    // getSession() lê do storage local — é instantâneo e não depende de eventos
+    supabase.auth.getSession().then(({ data }: { data: { session: any } }) => {
+      const session = data.session;
+      if (session?.user) {
+        // Sessão ativa encontrada: valida permissões sem registrar como novo login
+        checkAuth(false);
+      } else {
+        // Nenhuma sessão: exibe tela de login imediatamente
+        setAuthLoading(false);
+      }
+    }).catch(() => {
       setAuthLoading(false);
-    }, 2000);
+    });
 
-    // Registra o listener ANTES de qualquer chamada getSession()
-    // para garantir que nenhum evento seja perdido (incluindo INITIAL_SESSION)
+    // PASSO 2: Escuta apenas eventos FUTUROS de autenticação (login/logout)
+    // INITIAL_SESSION já foi tratado pelo getSession() acima — ignorado aqui
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event: string, session: any) => {
         console.log('[onAuthStateChange] Auth event:', event, session?.user?.email);
 
-        if (session?.user) {
-          // Sessão detectada (login novo, F5, ou retorno de OAuth): verifica permissões
-          // SIGNED_IN = novo login | INITIAL_SESSION = F5/reload com sessão já ativa
-          const isNewLogin = event === 'SIGNED_IN';
-          await checkAuth(isNewLogin);
-          clearTimeout(timer);
+        if (event === 'SIGNED_IN' && session?.user) {
+          // Novo login via OAuth: valida e registra auditoria
+          await checkAuth(true);
         } else if (event === 'SIGNED_OUT') {
-          // Logout explícito: limpa todos os estados de autenticação
+          // Logout explícito: limpa todos os estados
           setUserEmail(null);
           setAuthorized(false);
           setUserRole(null);
           setAuthLoading(false);
-          clearTimeout(timer);
-        } else if (event === 'INITIAL_SESSION' && !session?.user) {
-          // INITIAL_SESSION sem sessão = usuário realmente não está logado
-          setUserEmail(null);
-          setAuthorized(false);
-          setUserRole(null);
-          setAuthLoading(false);
-          clearTimeout(timer);
         }
-        // Eventos como TOKEN_REFRESHED, USER_UPDATED etc. são ignorados aqui
+        // TOKEN_REFRESHED, USER_UPDATED, INITIAL_SESSION: ignorados — sessão já gerenciada
       }
     );
 
     return () => {
       subscription?.unsubscribe();
-      clearTimeout(timer);
     };
   }, []);
 
@@ -1314,9 +1311,19 @@ export default function CentralDiretoria() {
     setShowBannerModal(true);
   };
 
-  // Carregamento invisível (retorna null para evitar flash visual incômodo)
+  // Tela de carregamento de autenticação — exibida enquanto verifica a sessão
   if (authLoading) {
-    return null;
+    return (
+      <div className="min-h-screen bg-[#0B0B0C] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-6">
+          <div className="relative w-48 h-12 flex items-center justify-center">
+            <img src="/logoiAlves.png" alt="iAlves Pneus" className="h-full w-auto object-contain" />
+          </div>
+          <div className="w-8 h-8 border-2 border-[#E11D48] border-t-transparent rounded-full animate-spin" />
+          <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest">Verificando acesso...</p>
+        </div>
+      </div>
+    );
   }
 
   // Interface de Login caso não esteja autenticado
@@ -1474,11 +1481,7 @@ export default function CentralDiretoria() {
             </div>
           )}
 
-          {loading && (
-            <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
-              <div className="w-12 h-12 border-4 border-[#E11D48] border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          )}
+          {/* Overlay de loading removido: cada botão de ação gerencia seu próprio estado */}
 
           {/* ABA 1: GERENCIAR ESTOQUE (PNEUS) */}
           {activeTab === 'pneus' && (
@@ -2056,9 +2059,17 @@ export default function CentralDiretoria() {
                 <div className="pt-4 border-t border-gray-900">
                   <button
                     type="submit"
-                    className="w-full px-6 py-4 bg-[#E11D48] hover:bg-[#F43F5E] text-white font-extrabold uppercase text-xs tracking-wider transition-all duration-300 rounded-none cursor-pointer"
+                    disabled={loading}
+                    className="w-full px-6 py-4 bg-[#E11D48] hover:bg-[#F43F5E] text-white font-extrabold uppercase text-xs tracking-wider transition-all duration-300 rounded-none cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
                   >
-                    Gravar Configurações Gerais
+                    {loading ? (
+                      <>
+                        <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+                        Salvando...
+                      </>
+                    ) : (
+                      'Gravar Configurações Gerais'
+                    )}
                   </button>
                 </div>
 
@@ -2637,10 +2648,17 @@ export default function CentralDiretoria() {
               <div className="flex items-center gap-3 pt-4 border-t border-gray-900">
                 <button
                   type="submit"
-                  disabled={isUploading}
-                  className="flex-1 px-4 py-3 bg-[#E11D48] hover:bg-[#F43F5E] text-white font-extrabold uppercase text-xs tracking-wider transition-all rounded-none cursor-pointer text-center disabled:opacity-50"
+                  disabled={isUploading || loading}
+                  className="flex-1 px-4 py-3 bg-[#E11D48] hover:bg-[#F43F5E] text-white font-extrabold uppercase text-xs tracking-wider transition-all rounded-none cursor-pointer text-center disabled:opacity-60 flex items-center justify-center gap-2"
                 >
-                  Confirmar Cadastro
+                  {loading ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+                      Salvando...
+                    </>
+                  ) : (
+                    'Confirmar Cadastro'
+                  )}
                 </button>
                 <button
                   type="button"
@@ -2736,10 +2754,17 @@ export default function CentralDiretoria() {
               <div className="flex items-center gap-3 pt-4 border-t border-gray-900">
                 <button
                   type="submit"
-                  disabled={isUploading}
-                  className="flex-1 px-4 py-3 bg-[#E11D48] hover:bg-[#F43F5E] text-white font-extrabold uppercase text-xs tracking-wider transition-all rounded-none cursor-pointer text-center disabled:opacity-50"
+                  disabled={isUploading || loading}
+                  className="flex-1 px-4 py-3 bg-[#E11D48] hover:bg-[#F43F5E] text-white font-extrabold uppercase text-xs tracking-wider transition-all rounded-none cursor-pointer text-center disabled:opacity-60 flex items-center justify-center gap-2"
                 >
-                  Confirmar Banner
+                  {loading ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+                      Salvando...
+                    </>
+                  ) : (
+                    'Confirmar Banner'
+                  )}
                 </button>
                 <button
                   type="button"
