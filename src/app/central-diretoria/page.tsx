@@ -371,7 +371,11 @@ export default function CentralDiretoria() {
       if (adminError) {
         if (isPrincipalAdmin) {
           if (isNewLogin) {
-            supabase.from('login_audits').insert({ email, status: 'sucesso' }).catch(() => {});
+            try {
+              await supabase.from('login_audits').insert({ email, status: 'sucesso' });
+            } catch (err) {
+              console.error('[checkAuth] Erro ao registrar audit sucesso:', err);
+            }
           }
           setUserRole('SUPER_ADMIN');
           setAuthorized(true);
@@ -387,10 +391,16 @@ export default function CentralDiretoria() {
 
       if (!adminUser) {
         // Auto-cadastro como PENDENTE
-        await supabase.from('administradores')
-          .insert({ email, role: 'ADMIN', status: 'PENDENTE' })
-          .then(() => {}).catch(() => {});
-        supabase.from('login_audits').insert({ email, status: 'tentativa_bloqueada' }).catch(() => {});
+        try {
+          await supabase.from('administradores').insert({ email, role: 'ADMIN', status: 'PENDENTE' });
+        } catch (err) {
+          console.error('[checkAuth] Erro ao registrar admin pendente:', err);
+        }
+        try {
+          await supabase.from('login_audits').insert({ email, status: 'tentativa_bloqueada' });
+        } catch (err) {
+          console.error('[checkAuth] Erro ao registrar audit tentativa bloqueada:', err);
+        }
         await supabase.auth.signOut();
         setUserRole(null);
         setAuthorized(false);
@@ -401,7 +411,11 @@ export default function CentralDiretoria() {
       const status = adminUser.status || 'PENDENTE';
 
       if (status !== 'ATIVO') {
-        supabase.from('login_audits').insert({ email, status: 'tentativa_bloqueada' }).catch(() => {});
+        try {
+          await supabase.from('login_audits').insert({ email, status: 'tentativa_bloqueada' });
+        } catch (err) {
+          console.error('[checkAuth] Erro ao registrar audit tentativa bloqueada:', err);
+        }
         await supabase.auth.signOut();
         setUserRole(null);
         setAuthorized(false);
@@ -411,7 +425,11 @@ export default function CentralDiretoria() {
       } else {
         const resolvedRole = (adminUser.role || (isPrincipalAdmin ? 'SUPER_ADMIN' : 'ADMIN')) as 'SUPER_ADMIN' | 'ADMIN';
         if (isNewLogin) {
-          supabase.from('login_audits').insert({ email, status: 'sucesso' }).catch(() => {});
+          try {
+            await supabase.from('login_audits').insert({ email, status: 'sucesso' });
+          } catch (err) {
+            console.error('[checkAuth] Erro ao registrar audit sucesso:', err);
+          }
         }
         setUserRole(resolvedRole);
         setAuthorized(true);

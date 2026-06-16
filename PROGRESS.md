@@ -25,6 +25,10 @@
   - **Monitor de Uso (Free Tier Limits):** Criada a RPC `get_db_size()` no Supabase que retorna o tamanho real do banco de dados. Implementamos no Painel Admin (na barra lateral) um monitor em tempo real exibindo o tamanho do banco com uma barra de progresso (limite gratuito de 500MB), a quantidade de pneus e de banners, e avisos sobre limites do plano free.
   - **Migration script:** Fornecido o script [create_get_db_size_rpc.sql](file:///g:/Desenvolvimento%20Clientes/iAlvesPneus/create_get_db_size_rpc.sql) para inicializar a RPC `get_db_size` no Supabase.
 - [x] **Idempotência no Script SQL:** Revisado `supabase_schema.sql` para incluir instruções `DROP POLICY IF EXISTS` e remover acentos das políticas de banco de dados, prevenindo interrupções em execuções subsequentes.
+- [x] **Correção Crítica no Fluxo de Login (checkAuth):**
+  - **Eliminação de Exceção por Chaining Incorreto:** Corrigido o erro que causava a quebra do fluxo de login (`TypeError: supabase.from(...).insert(...).catch is not a function`).
+  - **Uso Correto de Async/Await:** Refatoradas todas as inserções de logs de auditoria (`login_audits`) e autocadastro de administradores (`administradores`) para usar `async/await` com blocos `try/catch` estruturados.
+  - **Garantia de Entrega dos Logs:** A inclusão do `await` assegura que os registros de auditoria sejam gravados no banco de dados antes que a sessão seja encerrada ou ocorra redirecionamento, evitando requisições canceladas pelo navegador.
 
 ### ✅ Otimizações de Performance, Rolagem e Validação (10/06/2026)
 
