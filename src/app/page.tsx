@@ -134,7 +134,7 @@ export default function Home() {
         }
 
         // 2. Banners
-        if (bannerData && bannerData.length > 0) {
+        if (bannerData) {
           setBanners(bannerData.map((b: any) => ({
             id: b.id,
             imagem_url: b.imagem_url,
@@ -142,11 +142,15 @@ export default function Home() {
             ativo: b.ativo,
             ordem: b.ordem,
           })));
+        } else {
+          setBanners([]);
         }
 
         // 3. Pneus — passados diretamente para o componente Vitrine
-        if (pneusData && pneusData.length > 0) {
+        if (pneusData) {
           setPneus(pneusData as Pneu[]);
+        } else {
+          setPneus([]);
         }
       })
       .catch((err) => console.error('[iAlves] Erro ao carregar dados:', err))

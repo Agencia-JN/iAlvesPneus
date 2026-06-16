@@ -2256,9 +2256,17 @@ export default function CentralDiretoria() {
 
                   <button
                     type="submit"
-                    className="w-full py-3 bg-[#E11D48] hover:bg-[#F43F5E] text-white font-extrabold uppercase text-xs tracking-wider transition-all duration-300 rounded-none cursor-pointer"
+                    disabled={loading}
+                    className="w-full py-3 bg-[#E11D48] hover:bg-[#F43F5E] text-white font-extrabold uppercase text-xs tracking-wider transition-all duration-300 rounded-none cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
                   >
-                    Gerar Link de Afiliado
+                    {loading ? (
+                      <>
+                        <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+                        Gerando...
+                      </>
+                    ) : (
+                      'Gerar Link de Afiliado'
+                    )}
                   </button>
                 </form>
               </div>

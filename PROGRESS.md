@@ -29,6 +29,10 @@
   - **Eliminação de Exceção por Chaining Incorreto:** Corrigido o erro que causava a quebra do fluxo de login (`TypeError: supabase.from(...).insert(...).catch is not a function`).
   - **Uso Correto de Async/Await:** Refatoradas todas as inserções de logs de auditoria (`login_audits`) e autocadastro de administradores (`administradores`) para usar `async/await` com blocos `try/catch` estruturados.
   - **Garantia de Entrega dos Logs:** A inclusão do `await` assegura que os registros de auditoria sejam gravados no banco de dados antes que a sessão seja encerrada ou ocorra redirecionamento, evitando requisições canceladas pelo navegador.
+- [x] **Prevenção de Duplicações e Bloqueio de Double-Submit:**
+  - **Busca de Dados Segura:** Confirmado que a renderização inicial e recarregamentos no painel admin e home utilizam substituição total (`setBanners(data)` e `setPneus(data)`) ao invés de concatenação, eliminando duplicações de renderização de registros antigos. Adicionados fallbacks de limpeza (`[]`) em caso de retorno vazio ou nulo da API.
+  - **Bloqueio de Cliques Duplos:** Adicionada a propriedade `disabled={loading}` em todos os formulários e modais de criação do painel admin (Pneus, Banners, Configurações Gerais, Acessos e Afiliados), prevenindo cliques múltiplos e inserção de dados em duplicidade no banco por lag de rede.
+
 
 ### ✅ Otimizações de Performance, Rolagem e Validação (10/06/2026)
 
