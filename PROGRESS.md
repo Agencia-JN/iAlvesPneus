@@ -2,6 +2,17 @@
 
 ## 🚀 Status Atual: Painel Protegido — Acesso Restrito por Tabela `administradores`
 
+### ✅ Estabilização da Central da Diretoria e Fluxo de Sessão (16/06/2026)
+
+- [x] **Resolução do Loop Infinito no F5:**
+  - Implementado carregamento dual de sessão via `getSession()` (síncrono/local) e `onAuthStateChange` (eventos futuros).
+  - Eliminado deadlock: a função de verificação `checkAuth` agora recebe a sessão diretamente como argumento, evitando concorrência de rede e loops infinitos de recarregamento.
+  - Implementado timer de fallback absoluto de 10 segundos para forçar o encerramento do estado `authLoading` em redes instáveis.
+- [x] **Otimização de Estados de Carregamento (Loading UX):**
+  - Removido overlay bloqueante de carregamento da tela cheia durante ações de salvamento.
+  - Adicionado carregamento inline nos botões de ação (ex: "Confirmar", "Salvar"), garantindo que a tela permaneça interativa.
+  - Padronização de blocos `try / catch / finally` em todos os submits (Pneus, Banners, Configurações, Afiliados e Admins) para assegurar o reset correto do estado `loading(false)`.
+
 ### ✅ Otimizações de Performance, Rolagem e Validação (10/06/2026)
 
 - [x] **Carregamento Paralelo & Fim das Queries Duplicadas:**

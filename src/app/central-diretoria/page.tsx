@@ -209,9 +209,10 @@ export default function CentralDiretoria() {
   const bannerFileInputRef = useRef<HTMLInputElement>(null);
 
   // ─── Fluxo de Autenticação ────────────────────────────────────────────────
-  // onAuthStateChange é a ÚNICA fonte da verdade para o estado da sessão.
-  // Isso evita o flash da tela de login durante redirects do Google OAuth:
-  // o authLoading permanece true até que o primeiro evento de auth seja disparado.
+  // Estratégia dual para máxima confiabilidade em ambiente Netlify/Next.js:
+  // 1) getSession() verifica a sessão existente imediatamente (lê do localStorage)
+  // 2) onAuthStateChange ouve apenas eventos futuros (novo login / logout)
+  // checkAuth recebe a sessão como parâmetro para evitar chamada dupla a getSession().
   useEffect(() => {
     const isConfigured = isSupabaseConfigured();
     setSupabaseActive(isConfigured);
@@ -221,41 +222,42 @@ export default function CentralDiretoria() {
       return;
     }
 
-    // Timer de segurança: garante que authLoading nunca fica travado indefinidamente
-    // 8 segundos é tempo suficiente para qualquer query ao Supabase completar
+    // Fallback de segurança absoluto: libera o loading após 10s em qualquer cenário
     const timer = setTimeout(() => {
-      console.warn('[Auth] Timeout de segurança atingido. Liberando authLoading.');
+      console.warn('[Auth] Timeout de 10s atingido. Liberando authLoading.');
       setAuthLoading(false);
-    }, 8000);
+    }, 10000);
 
-    // onAuthStateChange é a fonte única da verdade para o estado de sessão.
-    // Cobre TODOS os casos: novo login (SIGNED_IN), F5/reload (INITIAL_SESSION com sessão),
-    // e sem sessão (INITIAL_SESSION sem sessão / SIGNED_OUT).
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event: string, session: any) => {
-        console.log('[onAuthStateChange] Auth event:', event, session?.user?.email);
-
-        if (session?.user) {
-          // Sessão detectada — cobre SIGNED_IN (novo login) e INITIAL_SESSION (F5/reload)
-          const isNewLogin = event === 'SIGNED_IN';
-          await checkAuth(isNewLogin);
+    // PASSO 1: Verifica sessão existente (F5, reload, navegação direta)
+    // getSession() lê do localStorage — não faz chamada de rede para tokens válidos
+    supabase.auth.getSession()
+      .then(({ data }: { data: { session: any } }) => {
+        if (data.session?.user) {
+          checkAuth(data.session, false).finally(() => clearTimeout(timer));
+        } else {
           clearTimeout(timer);
-        } else if (event === 'SIGNED_OUT') {
-          // Logout explícito: limpa todos os estados
-          setUserEmail(null);
-          setAuthorized(false);
-          setUserRole(null);
           setAuthLoading(false);
-          clearTimeout(timer);
-        } else if (event === 'INITIAL_SESSION' && !session?.user) {
-          // Reload sem sessão ativa: exibe tela de login
-          setUserEmail(null);
-          setAuthorized(false);
-          setUserRole(null);
-          setAuthLoading(false);
-          clearTimeout(timer);
         }
-        // TOKEN_REFRESHED, USER_UPDATED: ignorados — não alteram o estado de auth
+      })
+      .catch(() => {
+        clearTimeout(timer);
+        setAuthLoading(false);
+      });
+
+    // PASSO 2: Ouve eventos futuros de autenticação (novo login via OAuth, logout)
+    // INITIAL_SESSION já foi tratado pelo getSession() acima — ignorado aqui
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event: string, session: any) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          checkAuth(session, true).finally(() => clearTimeout(timer));
+        } else if (event === 'SIGNED_OUT') {
+          clearTimeout(timer);
+          setUserEmail(null);
+          setAuthorized(false);
+          setUserRole(null);
+          setAuthLoading(false);
+        }
+        // INITIAL_SESSION, TOKEN_REFRESHED, USER_UPDATED: ignorados
       }
     );
 
@@ -324,121 +326,86 @@ export default function CentralDiretoria() {
     }
   };
 
-  // 1. Verificação de Admin — chamada apenas após onAuthStateChange confirmar sessão ativa
-  // Nunca chama getSession() diretamente; recebe a sessão já confirmada pelo listener.
-  const checkAuth = async (isNewLogin: boolean = false) => {
+  // 1. Verificação de Admin
+  // Recebe a sessão como parâmetro (não chama getSession() internamente)
+  // para evitar deadlock quando chamado logo após getSession() no useEffect.
+  const checkAuth = async (session: any, isNewLogin: boolean = false): Promise<void> => {
     try {
       setAuthMsg(null);
-      // Sessão já confirmada pelo onAuthStateChange — busca e-mail direto da sessão ativa
-      const { data: { session } } = await supabase.auth.getSession();
 
-      // Guarda de segurança: se a sessão sumiu entre o evento e esta chamada, libera o loading
       if (!session?.user?.email) {
-        console.log('[checkAuth Debug] Sessão nula ou e-mail ausente. Acesso negado.');
         setAuthorized(false);
         setUserRole(null);
-        return; // finally garante setAuthLoading(false)
+        return;
       }
 
-      const email = session.user.email;
+      const email: string = session.user.email;
       setUserEmail(email);
 
-      // Consulta se o e-mail consta na tabela de administradores autorizados
+      const isPrincipalAdmin = email === 'nilson.brites@gmail.com';
+
+      // Consulta permissão na tabela de administradores
       const { data: adminUser, error: adminError } = await supabase
         .from('administradores')
         .select('email, role, status')
         .eq('email', email)
         .maybeSingle();
 
-      console.log('[checkAuth Debug] Iniciando validação para e-mail:', email);
-      console.log('[checkAuth Debug] Registro retornado do banco:', adminUser);
-
-      const isPrincipalAdmin = email === 'nilson.brites@gmail.com';
-
       if (adminError) {
-        console.error('[checkAuth Debug] Erro retornado pelo banco ao buscar administrador (ignorado):', adminError);
         if (isPrincipalAdmin) {
-          console.log('[checkAuth Debug] Acesso provisório liberado devido a erro de banco para o administrador principal. Papel assumido: SUPER_ADMIN');
           if (isNewLogin) {
-            await supabase.from('login_audits').insert({ email, status: 'sucesso' })
-              .then(() => {}).catch(() => {});
+            supabase.from('login_audits').insert({ email, status: 'sucesso' }).catch(() => {});
           }
           setUserRole('SUPER_ADMIN');
           setAuthorized(true);
-          loadDatabaseData().catch(e => console.error('[checkAuth] Erro ao carregar dados:', e));
+          loadDatabaseData().catch(e => console.error('[checkAuth]', e));
         } else {
-          console.log('[checkAuth Debug] Acesso negado devido a erro de banco para usuário comum:', email);
           await supabase.auth.signOut();
           setUserRole(null);
           setAuthorized(false);
-          setAuthMsg('Erro ao verificar permissões de acesso. Por favor, fale com a diretoria para liberar seu acesso via painel administrativo.');
+          setAuthMsg('Erro ao verificar permissões. Fale com a diretoria.');
         }
-        return; // finally garante setAuthLoading(false)
+        return;
       }
 
       if (!adminUser) {
-        console.log('[checkAuth Debug] E-mail não localizado na tabela administradores. Realizando auto-cadastro como PENDENTE.');
-        const { error: insertError } = await supabase
-          .from('administradores')
-          .insert({ email, role: 'ADMIN', status: 'PENDENTE' });
-
-        if (insertError) {
-          const isConflict = insertError.code === '23505' || 
-                             String(insertError.message).includes('duplicate') || 
-                             String(insertError.status) === '409';
-          if (isConflict) {
-            console.log('[checkAuth Debug] Usuário já cadastrado anteriormente (conflito 409/23505). Acesso permanece pendente de aprovação.');
-          } else {
-            console.error('[checkAuth Debug] Falha ao auto-cadastrar usuário pendente:', insertError);
-          }
-        }
-
-        await supabase.from('login_audits').insert({ email, status: 'tentativa_bloqueada' })
+        // Auto-cadastro como PENDENTE
+        await supabase.from('administradores')
+          .insert({ email, role: 'ADMIN', status: 'PENDENTE' })
           .then(() => {}).catch(() => {});
+        supabase.from('login_audits').insert({ email, status: 'tentativa_bloqueada' }).catch(() => {});
         await supabase.auth.signOut();
-        
         setUserRole(null);
         setAuthorized(false);
-        setAuthMsg('Por favor, fale com a diretoria para liberar seu acesso via painel administrativo.');
-        return; // finally garante setAuthLoading(false)
+        setAuthMsg('Fale com a diretoria para liberar seu acesso.');
+        return;
       }
 
-      const status = adminUser?.status || 'PENDENTE';
+      const status = adminUser.status || 'PENDENTE';
 
       if (status !== 'ATIVO') {
-        console.log('[checkAuth Debug] E-mail encontrado, mas status não é ATIVO. Status:', status);
-        await supabase.from('login_audits').insert({ email, status: 'tentativa_bloqueada' })
-          .then(() => {}).catch(() => {});
+        supabase.from('login_audits').insert({ email, status: 'tentativa_bloqueada' }).catch(() => {});
         await supabase.auth.signOut();
-
         setUserRole(null);
         setAuthorized(false);
-        if (status === 'BLOQUEADO') {
-          setAuthMsg('Seu acesso está bloqueado. Fale com a diretoria.');
-        } else {
-          setAuthMsg('Por favor, fale com a diretoria para liberar seu acesso via painel administrativo.');
-        }
+        setAuthMsg(status === 'BLOQUEADO'
+          ? 'Seu acesso está bloqueado. Fale com a diretoria.'
+          : 'Fale com a diretoria para liberar seu acesso.');
       } else {
-        const resolvedRole = adminUser?.role || (isPrincipalAdmin ? 'SUPER_ADMIN' : 'ADMIN');
-        console.log('[checkAuth Debug] Acesso autorizado. Papel resolvido para o usuário:', resolvedRole);
-        // Acesso Permitido: registra auditoria de sucesso e libera o painel APENAS se for um novo login
+        const resolvedRole = (adminUser.role || (isPrincipalAdmin ? 'SUPER_ADMIN' : 'ADMIN')) as 'SUPER_ADMIN' | 'ADMIN';
         if (isNewLogin) {
-          await supabase.from('login_audits').insert({ email, status: 'sucesso' })
-            .then(() => {}).catch(() => {});
+          supabase.from('login_audits').insert({ email, status: 'sucesso' }).catch(() => {});
         }
-        setUserRole(resolvedRole as 'SUPER_ADMIN' | 'ADMIN');
+        setUserRole(resolvedRole);
         setAuthorized(true);
-        // Carrega dados em background sem bloquear o desbloqueio do painel
-        loadDatabaseData().catch(e => console.error('[checkAuth] Erro ao carregar dados iniciais:', e));
+        loadDatabaseData().catch(e => console.error('[checkAuth]', e));
       }
     } catch (e) {
-      console.error('[checkAuth] Falha de verificação de segurança:', e);
-      // Em caso de exceção inesperada, garante que o painel não fique em loading infinito
+      console.error('[checkAuth] Erro inesperado:', e);
       setAuthorized(false);
       setUserRole(null);
-      setAuthMsg('Ocorreu um erro inesperado na verificação de acesso. Tente novamente.');
+      setAuthMsg('Erro inesperado. Tente novamente.');
     } finally {
-      // SEMPRE libera o authLoading, independente do caminho percorrido
       setAuthLoading(false);
     }
   };
