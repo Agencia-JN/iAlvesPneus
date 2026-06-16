@@ -37,6 +37,7 @@ interface SiteConfigs {
     frete_ativo: boolean;
     blog_ia_ativo: boolean;
   };
+  banner_tempo_transicao?: number;
 }
 
 // ─── Estado inicial — valores vazios para evitar flash no mount ────────────
@@ -63,6 +64,7 @@ const CONFIGS_DEFAULT: SiteConfigs = {
     frete_ativo: true,
     blog_ia_ativo: false,
   },
+  banner_tempo_transicao: 6,
 };
 
 export default function Home() {
@@ -125,6 +127,9 @@ export default function Home() {
               frete_ativo: ft.frete_ativo !== false,
               blog_ia_ativo: !!ft.blog_ia_ativo,
             },
+            banner_tempo_transicao: configData.banner_tempo_transicao !== undefined && configData.banner_tempo_transicao !== null 
+              ? Number(configData.banner_tempo_transicao) 
+              : 6,
           });
         }
 
@@ -266,9 +271,8 @@ export default function Home() {
       {/* ═══ BANNER CARROSSEL ═══ */}
       <BannerCarrossel
         banners={banners}
-        heroTitulo={configs.hero_config.titulo}
-        heroSubtitulo={configs.hero_config.subtitulo}
         heroBackgroundUrl={configs.hero_config.background_url}
+        tempoTransicao={configs.banner_tempo_transicao}
       />
 
       {/* ═══ VITRINE DE PRODUTOS ═══ */}

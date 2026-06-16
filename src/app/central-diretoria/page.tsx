@@ -56,6 +56,7 @@ interface Configuracoes {
   hero_config?: HeroConfig;
   footer_config?: FooterConfig;
   features_config?: FeaturesConfig;
+  banner_tempo_transicao?: number;
 }
 
 interface Afiliado {
@@ -158,6 +159,7 @@ export default function CentralDiretoria() {
       frete_ativo: true,
       blog_ia_ativo: false,
     },
+    banner_tempo_transicao: 6,
   });
 
   const [socialErrors, setSocialErrors] = useState({
@@ -523,6 +525,9 @@ export default function CentralDiretoria() {
             frete_ativo: configData.features_config?.frete_ativo !== false,
             blog_ia_ativo: !!configData.features_config?.blog_ia_ativo,
           },
+          banner_tempo_transicao: configData.banner_tempo_transicao !== undefined && configData.banner_tempo_transicao !== null 
+            ? Number(configData.banner_tempo_transicao) 
+            : 6,
         });
       }
 
@@ -1070,6 +1075,7 @@ export default function CentralDiretoria() {
         footer_config: configs.footer_config,
         features_config: configs.features_config,
         horarios_postagem: configs.horarios_postagem,
+        banner_tempo_transicao: configs.banner_tempo_transicao || 6,
       };
 
       let saveError;
@@ -1714,6 +1720,32 @@ export default function CentralDiretoria() {
                           <div className="w-11 h-6 bg-gray-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#E11D48]"></div>
                         </label>
                       </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* BLOCO 1.5: CARROSSEL CONFIG */}
+                <div className="space-y-4 pt-4 border-t border-gray-900">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-[#E11D48] border-b border-gray-900 pb-2">
+                    Carrossel Config (Tempo de Transição)
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="block text-[10px] font-bold uppercase text-gray-400">Tempo de Exibição do Slide (segundos)</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={60}
+                        required
+                        value={configs.banner_tempo_transicao || 6}
+                        onChange={(e) => setConfigs({
+                          ...configs,
+                          banner_tempo_transicao: parseInt(e.target.value) || 6
+                        })}
+                        placeholder="Ex: 6"
+                        className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48]"
+                      />
+                      <p className="text-[9px] text-gray-500 font-bold uppercase">Define o tempo em segundos que cada banner promocional é exibido antes de mudar automaticamente.</p>
                     </div>
                   </div>
                 </div>

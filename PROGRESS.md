@@ -12,6 +12,12 @@
   - Removido overlay bloqueante de carregamento da tela cheia durante ações de salvamento.
   - Adicionado carregamento inline nos botões de ação (ex: "Confirmar", "Salvar"), garantindo que a tela permaneça interativa.
   - Padronização de blocos `try / catch / finally` em todos os submits (Pneus, Banners, Configurações, Afiliados e Admins) para assegurar o reset correto do estado `loading(false)`.
+- [x] **Refatoração Completa do Componente de Banners (Carrossel):**
+  - **Limpeza do Frontend:** Removida a sobreposição de textos, botões e camadas de gradiente escuro (`bg-black/40`, `bg-gradient-to-t`, etc.). As imagens agora são renderizadas com 100% de brilho e clareza.
+  - **Exibição Completa (Sem Cortes):** Alterado o dimensionamento da imagem do banner para utilizar `object-contain`, eliminando cortes nas laterais em telas grandes e exibindo a arte de forma integral.
+  - **Banner 100% Clicável:** Envolvida a tag `<Image>` em uma tag `<a>` de redirecionamento, tornando o banner inteiro clicável.
+  - **Carrossel Dinâmico e Tempo de Transição:** Adicionada a coluna `banner_tempo_transicao` (padrão: 6 segundos) na tabela `configuracoes` e criado um input numérico nas Configurações Globais do painel administrativo. O carrossel lê dinamicamente esse intervalo para controlar o autoplay.
+  - **Limpeza do Banco e Esquemas:** Criado script de migração SQL `add_banner_transition.sql` e atualizado `supabase_schema.sql`. Os campos de título, subtítulo e botão de banner agora são totalmente ignorados, deixando o formulário de banners apenas com Upload de Imagem, URL de Redirecionamento e Status Ativo.
 
 ### ✅ Otimizações de Performance, Rolagem e Validação (10/06/2026)
 
