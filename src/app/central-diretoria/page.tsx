@@ -216,6 +216,7 @@ export default function CentralDiretoria() {
 
   // Estados de Modais e CRUD (Banners)
   const [showBannerModal, setShowBannerModal] = useState(false);
+  const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
   const [bannerForm, setBannerForm] = useState({
     imagem_file: null as File | null,
@@ -2044,12 +2045,20 @@ export default function CentralDiretoria() {
                   <h2 className="text-2xl font-black uppercase tracking-wider text-white">Banners Rotativos</h2>
                   <p className="text-xs text-gray-500 font-bold uppercase mt-1">Adicione ou ordene as imagens promocionais gigantes do topo da Home</p>
                 </div>
-                <button
-                  onClick={() => { resetBannerForm(); setEditingBanner(null); setShowBannerModal(true); }}
-                  className="px-6 py-3.5 bg-[#E11D48] hover:bg-[#F43F5E] text-white font-extrabold uppercase text-xs tracking-wider transition-all duration-300 rounded-none cursor-pointer"
-                >
-                  ➕ Novo Banner
-                </button>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={() => setIsPromptModalOpen(true)}
+                    className="px-6 py-3.5 bg-transparent hover:bg-white/5 text-white border border-gray-800 hover:border-gray-650 font-extrabold uppercase text-xs tracking-wider transition-all duration-300 rounded-none cursor-pointer flex items-center gap-2"
+                  >
+                    🤖 Prompt para IA
+                  </button>
+                  <button
+                    onClick={() => { resetBannerForm(); setEditingBanner(null); setShowBannerModal(true); }}
+                    className="px-6 py-3.5 bg-[#E11D48] hover:bg-[#F43F5E] text-white font-extrabold uppercase text-xs tracking-wider transition-all duration-300 rounded-none cursor-pointer"
+                  >
+                    ➕ Novo Banner
+                  </button>
+                </div>
               </div>
 
               {/* Nota Informativa sobre Banner Desktop e Mobile */}
@@ -3480,6 +3489,82 @@ export default function CentralDiretoria() {
               </div>
 
             </form>
+          </div>
+        </div>
+      )}
+
+
+
+      {/* ----------------------------------------------------------------------
+          MODAL: GERADOR DE BANNERS COM INTELIGÊNCIA ARTIFICIAL
+          ---------------------------------------------------------------------- */}
+      {isPromptModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="glass-panel max-w-lg w-full p-6 sm:p-8 rounded-none border-t-4 border-t-[#3B82F6] relative max-h-[90vh] overflow-y-auto">
+            
+            <div className="flex items-center justify-between border-b border-gray-900 pb-4 mb-6">
+              <h3 className="text-lg font-black uppercase tracking-widest text-white flex items-center gap-2">
+                <span>🤖</span> Gerador de Banners com IA
+              </h3>
+              <button
+                onClick={() => setIsPromptModalOpen(false)}
+                className="text-gray-500 hover:text-white font-black text-xs uppercase"
+              >
+                [Fechar]
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <p className="text-xs text-gray-300 font-bold uppercase leading-relaxed">
+                Copie o texto abaixo, cole no ChatGPT, Midjourney ou outra IA de sua preferência, e substitua os dados entre colchetes pelos dados da sua promoção.
+              </p>
+
+              <textarea
+                readOnly
+                rows={10}
+                value={`Atue como um designer gráfico sênior especialista em e-commerce. Crie um banner promocional para uma distribuidora de pneus de carga pesada.
+Regras OBRIGATÓRIAS:
+1. Tamanho: Exatamente 1920x600 pixels (formato panorâmico).
+2. Zona de Segurança (CRÍTICA): Todo o texto principal, a foto do pneu e os preços devem ficar estritamente no CENTRO da imagem. As bordas laterais, superior e inferior devem conter apenas a textura do fundo. NÃO coloque nenhuma informação ou texto encostado nas bordas, pois o site fará cortes responsivos.
+3. Elementos: NÃO inclua o logotipo da loja na imagem.
+4. Estilo Visual: Fundo escuro (preto/cinza carbono), detalhes em vermelho, design agressivo e moderno.
+Crie a arte com os seguintes dados:
+Produto: [NOME DO PNEU E MEDIDA]
+Preço: [INSERIR PREÇO]
+Vantagem: [EX: RETIRADA IMEDIATA / ENTREGA RÁPIDA]`}
+                className="w-full bg-gray-900 border border-gray-800 px-3 py-2.5 text-xs font-mono rounded-none text-gray-200 focus:outline-none select-all"
+              />
+
+              <div className="flex items-center gap-3 pt-4 border-t border-gray-900">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`Atue como um designer gráfico sênior especialista em e-commerce. Crie um banner promocional para uma distribuidora de pneus de carga pesada.
+Regras OBRIGATÓRIAS:
+1. Tamanho: Exatamente 1920x600 pixels (formato panorâmico).
+2. Zona de Segurança (CRÍTICA): Todo o texto principal, a foto do pneu e os preços devem ficar estritamente no CENTRO da imagem. As bordas laterais, superior e inferior devem conter apenas a textura do fundo. NÃO coloque nenhuma informação ou texto encostado nas bordas, pois o site fará cortes responsivos.
+3. Elementos: NÃO inclua o logotipo da loja na imagem.
+4. Estilo Visual: Fundo escuro (preto/cinza carbono), detalhes em vermelho, design agressivo e moderno.
+Crie a arte com os seguintes dados:
+Produto: [NOME DO PNEU E MEDIDA]
+Preço: [INSERIR PREÇO]
+Vantagem: [EX: RETIRADA IMEDIATA / ENTREGA RÁPIDA]`);
+                    showToast('Prompt copiado para a área de transferência!', 'sucesso');
+                  }}
+                  className="flex-1 px-4 py-3 bg-[#3B82F6] hover:bg-[#2563EB] text-white font-extrabold uppercase text-xs tracking-wider transition-all rounded-none cursor-pointer text-center flex items-center justify-center gap-2"
+                >
+                  📋 Copiar Prompt
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsPromptModalOpen(false)}
+                  className="px-6 py-3.5 border border-gray-800 hover:border-gray-650 bg-white/5 text-white font-extrabold uppercase text-xs tracking-wider transition-all rounded-none cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
       )}
