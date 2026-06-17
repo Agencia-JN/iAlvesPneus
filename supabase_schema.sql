@@ -127,6 +127,10 @@ CREATE TABLE IF NOT EXISTS configuracoes (
     logo_url TEXT DEFAULT '/logoiAlves.png',
     banner_tempo_transicao INTEGER DEFAULT 6,
     hero_ativo BOOLEAN DEFAULT FALSE,
+    mapa_ativo BOOLEAN DEFAULT FALSE,
+    endereco_completo TEXT DEFAULT '',
+    link_google_maps TEXT DEFAULT '',
+    link_waze TEXT DEFAULT '',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -152,7 +156,11 @@ INSERT INTO configuracoes (
     direitos_reservados,
     logo_url,
     banner_tempo_transicao,
-    hero_ativo
+    hero_ativo,
+    mapa_ativo,
+    endereco_completo,
+    link_google_maps,
+    link_waze
 ) VALUES (
     1,
     '5511999999999',
@@ -174,14 +182,22 @@ INSERT INTO configuracoes (
     'iAlves Pneus',
     '/logoiAlves.png',
     6,
-    FALSE
+    FALSE,
+    FALSE,
+    '',
+    '',
+    ''
 )
 ON CONFLICT (id) DO UPDATE SET
     whatsapp_numero = EXCLUDED.whatsapp_numero,
     hero_titulo = EXCLUDED.hero_titulo,
     hero_subtitulo = EXCLUDED.hero_subtitulo,
     banner_tempo_transicao = EXCLUDED.banner_tempo_transicao,
-    hero_ativo = EXCLUDED.hero_ativo;
+    hero_ativo = EXCLUDED.hero_ativo,
+    mapa_ativo = EXCLUDED.mapa_ativo,
+    endereco_completo = EXCLUDED.endereco_completo,
+    link_google_maps = EXCLUDED.link_google_maps,
+    link_waze = EXCLUDED.link_waze;
 
 
 -- ═══════════════════════════════════════════════════════════════════

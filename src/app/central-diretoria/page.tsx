@@ -58,6 +58,10 @@ interface Configuracoes {
   features_config?: FeaturesConfig;
   banner_tempo_transicao?: number;
   hero_ativo?: boolean;
+  mapa_ativo?: boolean;
+  endereco_completo?: string;
+  link_google_maps?: string;
+  link_waze?: string;
 }
 
 interface Afiliado {
@@ -137,6 +141,10 @@ export default function CentralDiretoria() {
     groq_api_key: '',
     horarios_postagem: ['08:00', '14:00', '20:00'],
     hero_ativo: false,
+    mapa_ativo: false,
+    endereco_completo: '',
+    link_google_maps: '',
+    link_waze: '',
     header_config: {
       logo_url: '/logoiAlves.png',
       aviso_topo: '🔥 OFERTA DE INAUGURAÇÃO: FRETE GRÁTIS PARA COMPRAS ACIMA DE 4 PNEUS!',
@@ -587,6 +595,10 @@ export default function CentralDiretoria() {
           banner_tempo_transicao: configData.banner_tempo_transicao !== undefined && configData.banner_tempo_transicao !== null 
             ? Number(configData.banner_tempo_transicao) 
             : 6,
+          mapa_ativo: configData.mapa_ativo === true,
+          endereco_completo: configData.endereco_completo || '',
+          link_google_maps: configData.link_google_maps || '',
+          link_waze: configData.link_waze || '',
         });
       }
       // 6. Administradores
@@ -1379,6 +1391,10 @@ export default function CentralDiretoria() {
         horarios_postagem: configs.horarios_postagem,
         banner_tempo_transicao: configs.banner_tempo_transicao || 6,
         hero_ativo: configs.hero_ativo || false,
+        mapa_ativo: configs.mapa_ativo || false,
+        endereco_completo: configs.endereco_completo?.trim() || '',
+        link_google_maps: configs.link_google_maps?.trim() || '',
+        link_waze: configs.link_waze?.trim() || '',
       };
 
       let saveError;
@@ -2241,7 +2257,80 @@ export default function CentralDiretoria() {
                   )}
                 </div>
 
-                {/* BLOCO 3: FOOTER CONFIG */}
+                {/* BLOCO 3: LOCALIZAÇÃO & MAPA */}
+                <div className="space-y-4 pt-4 border-t border-gray-900">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-[#E11D48] border-b border-gray-900 pb-2">
+                    Localização & Mapa
+                  </h3>
+
+                  {/* Interruptor de Ativação do Mapa */}
+                  <div className="flex items-center justify-between py-2">
+                    <div>
+                      <label className="block text-xs font-black uppercase tracking-widest text-white">Ativar Mapa no Site</label>
+                      <p className="text-[9px] text-gray-500 font-bold uppercase mt-1">Exibe a seção de endereço e mapa dinâmico no rodapé da página principal.</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={configs.mapa_ativo || false}
+                        onChange={(e) => setConfigs({
+                          ...configs,
+                          mapa_ativo: e.target.checked
+                        })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#E11D48]"></div>
+                    </label>
+                  </div>
+
+                  {configs.mapa_ativo && (
+                    <>
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-bold uppercase text-gray-400">Endereço Completo</label>
+                        <input
+                          type="text"
+                          value={configs.endereco_completo || ''}
+                          onChange={(e) => setConfigs({
+                            ...configs,
+                            endereco_completo: e.target.value
+                          })}
+                          placeholder="Ex: Rodovia BR-101, Km 12, Goiânia - GO"
+                          className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48]"
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="block text-[10px] font-bold uppercase text-gray-400">Link de Compartilhamento do Google Maps</label>
+                          <input
+                            type="text"
+                            value={configs.link_google_maps || ''}
+                            onChange={(e) => setConfigs({
+                              ...configs,
+                              link_google_maps: e.target.value
+                            })}
+                            placeholder="Link para abrir no GPS Google Maps"
+                            className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48] text-xs"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="block text-[10px] font-bold uppercase text-gray-400">Link de Compartilhamento do Waze</label>
+                          <input
+                            type="text"
+                            value={configs.link_waze || ''}
+                            onChange={(e) => setConfigs({
+                              ...configs,
+                              link_waze: e.target.value
+                            })}
+                            placeholder="Link para abrir no GPS Waze"
+                            className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48] text-xs"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* BLOCO 4: FOOTER CONFIG */}
                 <div className="space-y-4 pt-4 border-t border-gray-900">
                   <h3 className="text-xs font-black uppercase tracking-widest text-[#E11D48] border-b border-gray-900 pb-2">
                     Footer Config (Rodapé Institucional)
@@ -2399,7 +2488,7 @@ export default function CentralDiretoria() {
                   </div>
                 </div>
 
-                {/* BLOCO 4: FEATURES CONFIG */}
+                {/* BLOCO 5: FEATURES CONFIG */}
                 <div className="space-y-4 pt-4 border-t border-gray-900">
                   <h3 className="text-xs font-black uppercase tracking-widest text-[#E11D48] border-b border-gray-900 pb-2">
                     Features Config (Ativação de Recursos)

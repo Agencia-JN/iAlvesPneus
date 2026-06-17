@@ -2,6 +2,21 @@
 
 ## 🚀 Status Atual: Painel Protegido — Acesso Restrito por Tabela `administradores`
 
+### ✅ Módulo de Localização & Mapa sem Custos de API (16/06/2026)
+
+- [x] **Nova Migração de Banco de Dados:**
+  - Criado o arquivo de migração isolada `migration_add_mapa.sql` com comandos SQL para adicionar `mapa_ativo` (boolean), `endereco_completo` (text), `link_google_maps` (text) e `link_waze` (text) na tabela `configuracoes`.
+  - Atualizado o arquivo de esquema global `supabase_schema.sql` com as novas colunas e seeds correspondentes.
+- [x] **Gestão pelo Painel Administrativo:**
+  - Adicionada a seção "Localização & Mapa" nas Configurações Globais.
+  - Implementado o switch/toggle "Ativar Mapa no Site" e a renderização condicional dos 3 inputs de texto para endereço completo, link do Google Maps e link do Waze.
+  - Atualizada a função de salvamento `saveConfigs` para registrar os novos campos no Supabase.
+- [x] **Seção de Localização no E-commerce:**
+  - Inserido o novo componente/seção de Localização na Home Page (`page.tsx`) antes do rodapé.
+  - A seção é renderizada condicionalmente caso `configs.mapa_ativo` esteja habilitado e contenha endereço.
+  - Exibição de endereço formatado e dois botões de ação para abrir no Google Maps e ir com o Waze (com ícones SVG integrados).
+  - Incorporado mapa do Google Maps dinâmico e 100% gratuito utilizando a API de Embed por busca textual.
+
 ### ✅ Rastreamento de Conversões e SEO Técnico de Alta Qualidade (16/06/2026)
 
 - [x] **Rastreamento de Conversão via WhatsApp:**
