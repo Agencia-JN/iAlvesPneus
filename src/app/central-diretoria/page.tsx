@@ -651,15 +651,19 @@ export default function CentralDiretoria() {
     }
 
     let finalUrl = trimmed;
-    // Auto-convert handles/usernames if they don't contain slashes or dots
-    if (!trimmed.includes('.') && !trimmed.includes('/')) {
-      const handle = trimmed.startsWith('@') ? trimmed.slice(1) : trimmed;
-      if (platform === 'instagram') finalUrl = `https://instagram.com/${handle}`;
-      if (platform === 'facebook') finalUrl = `https://facebook.com/${handle}`;
-      if (platform === 'youtube') finalUrl = `https://youtube.com/@${handle}`;
-      if (platform === 'tiktok') finalUrl = `https://tiktok.com/@${handle}`;
-    } else if (!trimmed.startsWith('http')) {
-      finalUrl = `https://${trimmed}`;
+    if (platform === 'instagram') {
+      // Para o Instagram, mantemos o que foi digitado (usuário com ou sem @, ou link completo)
+      finalUrl = trimmed;
+    } else {
+      // Auto-convert handles/usernames if they don't contain slashes or dots
+      if (!trimmed.includes('.') && !trimmed.includes('/')) {
+        const handle = trimmed.startsWith('@') ? trimmed.slice(1) : trimmed;
+        if (platform === 'facebook') finalUrl = `https://facebook.com/${handle}`;
+        if (platform === 'youtube') finalUrl = `https://youtube.com/@${handle}`;
+        if (platform === 'tiktok') finalUrl = `https://tiktok.com/@${handle}`;
+      } else if (!trimmed.startsWith('http')) {
+        finalUrl = `https://${trimmed}`;
+      }
     }
 
     const isValid = validateSocialLink(finalUrl, platform);
@@ -677,7 +681,7 @@ export default function CentralDiretoria() {
 
     setSocialErrors(prev => ({
       ...prev,
-      [platform]: isValid ? '' : `Por favor, insira um link válido do ${platform.charAt(0).toUpperCase() + platform.slice(1)}.`
+      [platform]: isValid ? '' : `Por favor, insira um usuário ou link válido do ${platform.charAt(0).toUpperCase() + platform.slice(1)}.`
     }));
   };
 
@@ -2298,7 +2302,7 @@ export default function CentralDiretoria() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                     <div className="space-y-2">
-                      <label className="block text-[10px] font-bold uppercase text-gray-400">Link do Instagram</label>
+                      <label className="block text-[10px] font-bold uppercase text-gray-400">Usuário do Instagram (ex: @ialvespneus)</label>
                       <input
                         type="text"
                         value={configs.footer_config?.links_sociais?.instagram || ''}
@@ -2313,7 +2317,7 @@ export default function CentralDiretoria() {
                           }
                         })}
                         onBlur={(e) => handleSocialBlur('instagram', e.target.value)}
-                        placeholder="https://instagram.com/..."
+                        placeholder="ex: @ialvespneus"
                         className={`w-full bg-black border ${socialErrors.instagram ? 'border-red-600 focus:border-red-500' : 'border-gray-800 focus:border-gray-500'} px-4 py-2.5 rounded-none text-white focus:outline-none font-mono text-xs`}
                       />
                       {socialErrors.instagram && (

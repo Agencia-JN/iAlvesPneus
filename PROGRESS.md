@@ -2,6 +2,17 @@
 
 ## 🚀 Status Atual: Painel Protegido — Acesso Restrito por Tabela `administradores`
 
+### ✅ Melhorias de UX nas Redes Sociais (16/06/2026)
+
+- [x] **UX do Input do Instagram no Painel:**
+  - Alterados a etiqueta (label) e o placeholder do campo Instagram nas Configurações Globais para indicar que o usuário só precisa digitar o nome de usuário (ex: `@ialvespneus`).
+  - Desativada a auto-conversão imediata em URL no evento `onBlur` do Instagram para que a entrada de texto do administrador permaneça limpa.
+- [x] **Tratamento de Entrada de Usuário no Frontend:**
+  - Criada a função `getInstagramLink` em `utils.ts` que limpa o caractere `@` e constrói o link completo `https://instagram.com/usuario` de forma segura, mesmo que o usuário tenha inserido apenas o handle ou uma URL.
+- [x] **Ícones Minimalistas e Profissionais no Rodapé:**
+  - Substituídos os links textuais por botões de ícones SVG minimalistas integrados na seção "Redes Sociais" do rodapé.
+  - Regra de renderização condicional por presença de link e abertura em novas abas (`target="_blank" rel="noopener noreferrer"`) devidamente ativada.
+
 ### ✅ Controle de Exibição do Hero na Vitrine (16/06/2026)
 
 - [x] **Campo `hero_ativo` no Supabase:**

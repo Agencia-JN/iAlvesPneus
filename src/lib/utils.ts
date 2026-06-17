@@ -142,3 +142,17 @@ export function validateSocialLink(url: string, platform: 'instagram' | 'faceboo
     return false;
   }
 }
+
+/**
+ * Constrói e valida o link do Instagram removendo o '@' se presente
+ * e concatenando com https://instagram.com/ caso seja apenas o usuário.
+ */
+export function getInstagramLink(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (trimmed.includes('instagram.com/')) {
+    return trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
+  }
+  const username = trimmed.startsWith('@') ? trimmed.slice(1) : trimmed;
+  return `https://instagram.com/${username}`;
+}
