@@ -646,22 +646,25 @@ export default function Home() {
               <p className="text-[10px] tracking-wide uppercase text-gray-500 font-semibold">
                 © {new Date().getFullYear()} {configs.footer_config.texto_rodape.trim() || 'Todos os direitos reservados.'}{configs.footer_config.cnpj.trim() && ` | CNPJ: ${configs.footer_config.cnpj.trim()}`}
               </p>
-              <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider mt-1.5">
-                Desenvolvido por{' '}
-                <a
-                  href="https://agenciajn.com.br"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-white hover:underline transition-all duration-300"
-                >
-                  Agência JN
-                </a>
-              </p>
             </div>
             <div className="flex items-center gap-2 bg-[#121214] border border-gray-800/80 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-[#22C55E]">
               <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse"></span>
               <span>Conexão Segura SSL</span>
             </div>
+          </div>
+
+          <div className="mt-8 pt-6 border-t border-gray-900/40 text-center">
+            <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">
+              Desenvolvido por{' '}
+              <a
+                href="https://agenciajn.com.br"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white hover:underline transition-all duration-300"
+              >
+                Agência JN
+              </a>
+            </p>
           </div>
 
         </div>
