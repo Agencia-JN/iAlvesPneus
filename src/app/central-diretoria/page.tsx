@@ -3516,22 +3516,25 @@ export default function CentralDiretoria() {
 
             <div className="space-y-4">
               <p className="text-xs text-gray-300 font-bold uppercase leading-relaxed">
-                Copie o texto abaixo, cole no ChatGPT, Midjourney ou outra IA de sua preferência, e substitua os dados entre colchetes pelos dados da sua promoção.
+                Copie o texto abaixo e cole no ChatGPT (DALL-E 3) ou Midjourney. Este prompt foca nas regras de proporção e zona de segurança para que o banner não seja cortado pelos botões do site. Sinta-se livre para alterar as cores e o produto.
               </p>
 
               <textarea
                 readOnly
                 rows={10}
-                value={`Atue como um designer gráfico sênior especialista em e-commerce. Crie um banner promocional para uma distribuidora de pneus de carga pesada.
-Regras OBRIGATÓRIAS:
-1. Tamanho: Exatamente 1920x600 pixels (formato panorâmico).
-2. Zona de Segurança (CRÍTICA): Todo o texto principal, a foto do pneu e os preços devem ficar estritamente no CENTRO da imagem. As bordas laterais, superior e inferior devem conter apenas a textura do fundo. NÃO coloque nenhuma informação ou texto encostado nas bordas, pois o site fará cortes responsivos.
-3. Elementos: NÃO inclua o logotipo da loja na imagem.
-4. Estilo Visual: Fundo escuro (preto/cinza carbono), detalhes em vermelho, design agressivo e moderno.
-Crie a arte com os seguintes dados:
-Produto: [NOME DO PNEU E MEDIDA]
-Preço: [INSERIR PREÇO]
-Vantagem: [EX: RETIRADA IMEDIATA / ENTREGA RÁPIDA]`}
+                value={`Crie uma imagem de banner promocional panorâmico.
+FORMATO OBRIGATÓRIO: Proporção muito larga, estilo 32:10 (equivalente a 1920x600 pixels).
+
+REGRA CRÍTICA DE LAYOUT (ZONA DE SEGURANÇA):
+O site onde a imagem será usada possui setas de navegação nas laterais e blocos informativos na parte inferior. Por isso:
+1. Todo o texto principal e o produto em destaque devem estar estritamente CENTRALIZADOS no meio da imagem.
+2. As bordas esquerda e direita (os 20% das extremidades) NÃO devem ter texto, devem ser apenas o fundo/background estendido.
+3. A borda inferior (os 20% da base) também não deve conter informação importante, apenas o fundo.
+
+DADOS DA ARTE:
+- Produto a exibir: [TIPO DE PNEU OU RODA AQUI]
+- Estilo/Cores: [EX: Fundo escuro e agressivo, com detalhes na cor da marca]
+- Texto Central: [INSERIR AQUI O TEXTO PRINCIPAL E PREÇO]`}
                 className="w-full bg-gray-900 border border-gray-800 px-3 py-2.5 text-xs font-mono rounded-none text-gray-200 focus:outline-none select-all"
               />
 
@@ -3539,16 +3542,19 @@ Vantagem: [EX: RETIRADA IMEDIATA / ENTREGA RÁPIDA]`}
                 <button
                   type="button"
                   onClick={() => {
-                    navigator.clipboard.writeText(`Atue como um designer gráfico sênior especialista em e-commerce. Crie um banner promocional para uma distribuidora de pneus de carga pesada.
-Regras OBRIGATÓRIAS:
-1. Tamanho: Exatamente 1920x600 pixels (formato panorâmico).
-2. Zona de Segurança (CRÍTICA): Todo o texto principal, a foto do pneu e os preços devem ficar estritamente no CENTRO da imagem. As bordas laterais, superior e inferior devem conter apenas a textura do fundo. NÃO coloque nenhuma informação ou texto encostado nas bordas, pois o site fará cortes responsivos.
-3. Elementos: NÃO inclua o logotipo da loja na imagem.
-4. Estilo Visual: Fundo escuro (preto/cinza carbono), detalhes em vermelho, design agressivo e moderno.
-Crie a arte com os seguintes dados:
-Produto: [NOME DO PNEU E MEDIDA]
-Preço: [INSERIR PREÇO]
-Vantagem: [EX: RETIRADA IMEDIATA / ENTREGA RÁPIDA]`);
+                    navigator.clipboard.writeText(`Crie uma imagem de banner promocional panorâmico.
+FORMATO OBRIGATÓRIO: Proporção muito larga, estilo 32:10 (equivalente a 1920x600 pixels).
+
+REGRA CRÍTICA DE LAYOUT (ZONA DE SEGURANÇA):
+O site onde a imagem será usada possui setas de navegação nas laterais e blocos informativos na parte inferior. Por isso:
+1. Todo o texto principal e o produto em destaque devem estar estritamente CENTRALIZADOS no meio da imagem.
+2. As bordas esquerda e direita (os 20% das extremidades) NÃO devem ter texto, devem ser apenas o fundo/background estendido.
+3. A borda inferior (os 20% da base) também não deve conter informação importante, apenas o fundo.
+
+DADOS DA ARTE:
+- Produto a exibir: [TIPO DE PNEU OU RODA AQUI]
+- Estilo/Cores: [EX: Fundo escuro e agressivo, com detalhes na cor da marca]
+- Texto Central: [INSERIR AQUI O TEXTO PRINCIPAL E PREÇO]`);
                     showToast('Prompt copiado para a área de transferência!', 'sucesso');
                   }}
                   className="flex-1 px-4 py-3 bg-[#3B82F6] hover:bg-[#2563EB] text-white font-extrabold uppercase text-xs tracking-wider transition-all rounded-none cursor-pointer text-center flex items-center justify-center gap-2"
