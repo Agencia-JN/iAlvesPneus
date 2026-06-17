@@ -2,6 +2,14 @@
 
 ## 🚀 Status Atual: Painel Protegido — Acesso Restrito por Tabela `administradores`
 
+### ✅ Otimizações de Carregamento e Créditos JN no Footer (17/06/2026)
+
+- [x] **Prevenção de Flash of Default State no Header:**
+  - Substituído o valor padrão de número de telefone (`(11) 99999-9999`) por um esqueleto cinza pulsante (`animate-pulse`) enquanto as configurações do banco de dados ainda estão carregando. A correção foi aplicada tanto no cabeçalho de Desktop quanto nos links de Whatsapp e Telefone do cabeçalho Mobile.
+- [x] **Créditos da Agência Desenvolvedora:**
+  - Adicionado crédito discreto "Desenvolvido por Agência JN" no rodapé, alinhado abaixo das informações de Direitos Autorais e CNPJ.
+  - Implementado link direcionando para `https://agenciajn.com.br` com abertura segura em nova aba (`target="_blank" rel="noopener noreferrer"`) e efeito hover de sublinhado e destaque esbranquiçado.
+
 ### ✅ Módulo de Localização & Mapa sem Custos de API (16/06/2026)
 
 - [x] **Nova Migração de Banco de Dados:**
