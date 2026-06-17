@@ -73,7 +73,7 @@ export default function BannerCarrossel({ banners, heroBackgroundUrl, tempoTrans
   };
 
   return (
-    <section className="relative h-[240px] sm:h-[320px] md:h-[400px] lg:h-[480px] w-full overflow-hidden border-b border-gray-800 bg-zinc-950">
+    <section className="relative h-[200px] sm:h-[260px] md:h-[340px] lg:h-[400px] w-full overflow-hidden border-b border-gray-800 bg-zinc-950">
       
       {/* Container dos Slides */}
       <div className="relative w-full h-full">
@@ -88,7 +88,7 @@ export default function BannerCarrossel({ banners, heroBackgroundUrl, tempoTrans
               priority={index === 0}
               unoptimized
               sizes="100vw"
-              className="object-contain"
+              className="object-cover object-center"
             />
           ) : null;
 

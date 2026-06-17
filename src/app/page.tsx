@@ -295,14 +295,19 @@ export default function Home() {
               className="h-14 w-auto object-contain shrink-0"
             />
             <div className="flex items-center gap-5">
-              <div className="flex flex-col text-right">
-                <span className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Suporte Comercial</span>
+              <a
+                href={siteLoaded ? getWhatsappLink(configs.whatsapp_numero, 'Olá, vim através do site.') : '#'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-col text-right group cursor-pointer"
+              >
+                <span className="text-[9px] text-gray-500 font-bold uppercase tracking-widest group-hover:text-[#22C55E] transition-colors">Suporte Comercial</span>
                 {!siteLoaded ? (
                   <div className="h-4 w-28 bg-gray-800 animate-pulse rounded-sm mt-0.5 ml-auto self-end"></div>
                 ) : (
-                  <span className="text-sm font-black text-white">{telFormatada}</span>
+                  <span className="text-sm font-black text-white group-hover:text-[#22C55E] transition-colors">{telFormatada}</span>
                 )}
-              </div>
+              </a>
               <a
                 href="#vitrine-produtos"
                 className="px-5 py-2.5 bg-[#DC2626] hover:bg-white text-white hover:text-black font-black text-xs uppercase tracking-wider rounded-none transition-colors"
@@ -358,18 +363,12 @@ export default function Home() {
               )}
             </a>
           </div>
-          <button
-            type="button"
-            className="flex flex-col gap-1.5 cursor-pointer group"
-            onClick={() => {
-              const el = document.getElementById('vitrine-produtos');
-              if (el) el.scrollIntoView({ behavior: 'smooth' });
-            }}
+          <a
+            href="#vitrine-produtos"
+            className="px-3 py-1.5 bg-[#DC2626] hover:bg-[#B91C1C] text-white font-black text-[9px] uppercase tracking-widest transition-colors rounded-none"
           >
-            <span className="w-6 h-0.5 bg-white transition-colors group-hover:bg-[#DC2626]"></span>
-            <span className="w-6 h-0.5 bg-white transition-colors group-hover:bg-[#DC2626]"></span>
-            <span className="w-6 h-0.5 bg-white transition-colors group-hover:bg-[#DC2626]"></span>
-          </button>
+            Estoque
+          </a>
         </div>
         <div className="py-6 px-4 flex items-center justify-center bg-[#0B0B0C]">
           <img
@@ -662,18 +661,18 @@ export default function Home() {
 
           </div>
 
-          <div className="pt-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="space-y-1">
+          <div className="pt-8 border-t border-gray-900/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+            <div className="space-y-0.5">
               {configs.footer_config.direitos_reservados.trim() && (
-                <p className="text-white font-extrabold text-[11px] uppercase tracking-wider">
+                <p className="text-white font-extrabold text-[10px] uppercase tracking-wider">
                   {configs.footer_config.direitos_reservados.trim()}
                 </p>
               )}
-              <p className="text-[10px] tracking-wide uppercase text-gray-500 font-semibold">
+              <p className="text-[9px] tracking-wide uppercase text-gray-600 font-semibold">
                 © {new Date().getFullYear()} {configs.footer_config.texto_rodape.trim() || 'Todos os direitos reservados.'}{configs.footer_config.cnpj.trim() && ` | CNPJ: ${configs.footer_config.cnpj.trim()}`}
               </p>
             </div>
-            <div className="flex items-center gap-2 bg-[#121214] border border-gray-800/80 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-[#22C55E]">
+            <div className="flex items-center gap-2 bg-[#0A0A0B] border border-gray-800/60 px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-[#22C55E] shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse"></span>
               <span>Conexão Segura SSL</span>
             </div>
@@ -696,17 +695,19 @@ export default function Home() {
         </div>
       </footer>
 
-      {/* Botão Flutuante do WhatsApp */}
+      {/* Botão Flutuante do WhatsApp — Premium */}
       {configs.whatsapp_numero.trim() && (
         <a
           href={getWhatsappLink(configs.whatsapp_numero, 'Olá, vim através do site.')}
           target="_blank"
           rel="noopener noreferrer"
-          className="fixed bottom-6 right-6 z-50 bg-[#25D366] hover:bg-[#20BA5A] text-white p-3.5 rounded-full shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 flex items-center justify-center border border-emerald-500/30 group"
+          className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-[#25D366] hover:bg-[#1EBE5D] text-white rounded-full shadow-[0_4px_20px_rgba(37,211,102,0.4)] hover:shadow-[0_6px_30px_rgba(37,211,102,0.55)] hover:scale-110 active:scale-95 transition-all duration-300 flex items-center justify-center group"
           aria-label="Fale Conosco no WhatsApp"
         >
-          <svg className="w-6 h-6 fill-current transition-transform duration-300 group-hover:rotate-12" viewBox="0 0 24 24">
-            <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.965C16.57 1.977 14.1 1.053 11.998 1.053c-5.444 0-9.87 4.372-9.874 9.802-.001 1.77.472 3.498 1.372 5.068L2.536 21.5l5.111-1.346zm10.748-5.321c-.281-.14-.165-.37-.842-.71-.165-.083-.289-.124-.413.062-.124.186-.48.601-.587.723-.107.122-.215.138-.496.002-.28-.138-1.185-.437-2.257-1.393-.834-.743-1.397-1.66-1.562-1.94-.165-.282-.018-.434.122-.573.126-.124.281-.328.422-.493.14-.166.187-.282.281-.469.094-.187.047-.352-.023-.493-.07-.14-.587-1.413-.805-1.942-.211-.515-.425-.443-.587-.451-.15-.008-.323-.01-.497-.01-.174 0-.458.065-.697.323-.24.258-.916.895-.916 2.182 0 1.287.937 2.531 1.068 2.707.13.176 1.84 2.809 4.459 3.941.623.27 1.11.43 1.488.55.627.2 1.2.172 1.65.105.503-.074 1.547-.633 1.765-1.246.219-.613.219-1.139.153-1.246-.067-.109-.244-.166-.525-.307z"/>
+          {/* Anel pulsante */}
+          <span className="absolute inset-0 rounded-full bg-[#25D366]/30 animate-ping pointer-events-none"></span>
+          <svg className="w-7 h-7 fill-current relative z-10 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 24 24">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
           </svg>
         </a>
       )}
