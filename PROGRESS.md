@@ -2,6 +2,20 @@
 
 ## 🚀 Status Atual: Painel Protegido — Acesso Restrito por Tabela `administradores`
 
+### ✅ Rastreamento de Conversões e SEO Técnico de Alta Qualidade (16/06/2026)
+
+- [x] **Rastreamento de Conversão via WhatsApp:**
+  - Parametrizadas todas as chamadas e botões genéricos de WhatsApp (Header mobile, botão flutuante e rodapé) para incluir a mensagem de rastreamento: `Olá, vim através do site.`
+  - Adicionado botão flutuante do WhatsApp no canto inferior direito para acesso rápido em dispositivos móveis e desktop.
+  - Implementada mensagem dinâmica nos cards de pneus da vitrine para rastrear o produto de interesse: `Olá, vim através do site e tenho interesse no pneu [MARCA] [NOME] - Medida [MEDIDA].`
+- [x] **SEO Avançado e Metadados Open Graph/Twitter:**
+  - Atualizados os metadados no `layout.tsx` com template de título dinâmico, descrição aprimorada, palavras-chave de tráfego orgânico relevantes e tags Open Graph e Twitter Cards completas.
+- [x] **JSON-LD Estruturado (Schema.org):**
+  - Injetado script JSON-LD dinâmico na página inicial com os tipos `LocalBusiness` e `AutoPartsStore` utilizando as configurações da base de dados (como número do WhatsApp formatado).
+- [x] **Indexação Automatizada:**
+  - Criada a rota dinâmica de sitemap (`sitemap.ts`) que mapeia a URL raiz, o blog e todos os pneus ativos consultados diretamente do banco de dados Supabase.
+  - Criada a rota de robots (`robots.ts`) que orienta rastreadores a indexarem o site, bloqueia caminhos administrativos e referencia a URL do sitemap.
+
 ### ✅ Melhorias de UX nas Redes Sociais (16/06/2026)
 
 - [x] **UX do Input do Instagram no Painel:**

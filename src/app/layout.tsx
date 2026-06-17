@@ -14,15 +14,19 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://ialvespneus.com.br"),
-  title: "iAlves Pneus | Pneus Borrachudos e Lisos para Carga Pesada",
-  description: "Compre pneus novos de alta durabilidade, máxima tração e performance para frotas de caminhões e implementos rodoviários. Preço à vista imbatível no PIX e Frete Grátis para compras acima de 4 pneus!",
+  title: {
+    default: "iAlves Pneus | Pneus de Carga e Caminhão Novos",
+    template: "%s | iAlves Pneus"
+  },
+  description: "iAlves Pneus - Distribuidora especializada em pneus de carga, pneus para caminhão, recapagem e rodas. Alta performance, robustez extrema e máxima tração para frotas de caminhões, ônibus e implementos rodoviários.",
+  keywords: ["Pneus de carga", "pneus para caminhão", "recapagem", "iAlves Pneus", "distribuidora de pneus", "pneu borrachudo", "pneu liso", "pneu de ônibus", "recapadora", "pneus novos"],
   robots: {
     index: true,
     follow: true,
   },
   openGraph: {
-    title: "iAlves Pneus | Pneus Borrachudos e Lisos para Carga Pesada",
-    description: "Tudo em pneus novos de alta durabilidade e tração para caminhões e frotas. Aproveite frete grátis acima de 4 pneus e descontos incríveis no PIX!",
+    title: "iAlves Pneus | Pneus de Carga e Caminhão Novos",
+    description: "Distribuidora de pneus de carga novos e recapagem para caminhão e ônibus. Máxima tração e durabilidade para frotas com entrega expressa.",
     url: "https://ialvespneus.com.br",
     siteName: "iAlves Pneus",
     images: [
@@ -35,6 +39,12 @@ export const metadata: Metadata = {
     ],
     locale: "pt_BR",
     type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "iAlves Pneus | Pneus de Carga e Caminhão Novos",
+    description: "Distribuidora de pneus de carga novos e recapagem para caminhão e ônibus. Alta performance e durabilidade para sua frota.",
+    images: ["/logoiAlves.png"],
   },
   icons: {
     icon: [

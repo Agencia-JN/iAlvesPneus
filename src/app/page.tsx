@@ -181,8 +181,59 @@ export default function Home() {
     return configs.whatsapp_numero;
   }, [configs.whatsapp_numero]);
 
+  const jsonLd = useMemo(() => {
+    const phone = configs.whatsapp_numero ? `+${configs.whatsapp_numero.replace(/\D/g, '')}` : '+5500000000000';
+    return {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "LocalBusiness",
+          "@id": "https://ialvespneus.com.br/#localbusiness",
+          "name": "iAlves Pneus",
+          "image": "https://ialvespneus.com.br/logoiAlves.png",
+          "telephone": phone,
+          "url": "https://ialvespneus.com.br",
+          "priceRange": "$$",
+          "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "Rodovia BR-101",
+            "addressLocality": "Goiânia",
+            "addressRegion": "GO",
+            "postalCode": "74000-000",
+            "addressCountry": "BR"
+          },
+          "openingHoursSpecification": {
+            "@type": "OpeningHoursSpecification",
+            "dayOfWeek": [
+              "Monday",
+              "Tuesday",
+              "Wednesday",
+              "Thursday",
+              "Friday"
+            ],
+            "opens": "08:00",
+            "closes": "18:00"
+          }
+        },
+        {
+          "@type": "AutoPartsStore",
+          "@id": "https://ialvespneus.com.br/#autopartsstore",
+          "name": "iAlves Pneus",
+          "description": "iAlves Pneus - Distribuidora especializada em pneus de carga, pneus para caminhão, recapagem e rodas.",
+          "telephone": phone,
+          "url": "https://ialvespneus.com.br"
+        }
+      ]
+    };
+  }, [configs.whatsapp_numero]);
+
   return (
     <div className="text-white selection:bg-[#DC2626] selection:text-white w-full max-w-full">
+      {/* Dados Estruturados JSON-LD */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
 
       {/* ═══ DESKTOP HEADER (Fixo) ═══ */}
       <div className="hidden md:block fixed top-0 left-0 right-0 z-50 w-full">
@@ -233,7 +284,7 @@ export default function Home() {
         <div className="bg-[#121214] h-10 px-4 flex items-center justify-between border-b border-gray-800/60">
           <div className="flex items-center gap-4">
             <a
-              href={getWhatsappLink(configs.whatsapp_numero)}
+              href={getWhatsappLink(configs.whatsapp_numero, 'Olá, vim através do site.')}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 text-[#22C55E] text-[11px] font-black tracking-wider transition-colors hover:text-[#4ADE80]"
@@ -306,7 +357,7 @@ export default function Home() {
                 Conhecer Produtos
               </a>
               <a
-                href={getWhatsappLink(configs.whatsapp_numero)}
+                href={getWhatsappLink(configs.whatsapp_numero, 'Olá, vim através do site.')}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-8 py-3.5 bg-transparent border border-gray-800 hover:border-gray-600 hover:bg-white/5 text-white font-extrabold text-xs uppercase tracking-widest transition-all duration-300 rounded-none"
@@ -422,7 +473,7 @@ export default function Home() {
                 <li><a href="#vitrine-produtos" className="hover:text-[#DC2626] transition-colors">Vitrine de Pneus</a></li>
                 {configs.whatsapp_numero.trim() && (
                   <li>
-                    <a href={getWhatsappLink(configs.whatsapp_numero)} target="_blank" rel="noopener noreferrer" className="hover:text-[#DC2626] transition-colors">
+                    <a href={getWhatsappLink(configs.whatsapp_numero, 'Olá, vim através do site.')} target="_blank" rel="noopener noreferrer" className="hover:text-[#DC2626] transition-colors">
                       Suporte Comercial
                     </a>
                   </li>
@@ -513,6 +564,21 @@ export default function Home() {
 
         </div>
       </footer>
+
+      {/* Botão Flutuante do WhatsApp */}
+      {configs.whatsapp_numero.trim() && (
+        <a
+          href={getWhatsappLink(configs.whatsapp_numero, 'Olá, vim através do site.')}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="fixed bottom-6 right-6 z-50 bg-[#25D366] hover:bg-[#20BA5A] text-white p-3.5 rounded-full shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 flex items-center justify-center border border-emerald-500/30 group"
+          aria-label="Fale Conosco no WhatsApp"
+        >
+          <svg className="w-6 h-6 fill-current transition-transform duration-300 group-hover:rotate-12" viewBox="0 0 24 24">
+            <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.965C16.57 1.977 14.1 1.053 11.998 1.053c-5.444 0-9.87 4.372-9.874 9.802-.001 1.77.472 3.498 1.372 5.068L2.536 21.5l5.111-1.346zm10.748-5.321c-.281-.14-.165-.37-.842-.71-.165-.083-.289-.124-.413.062-.124.186-.48.601-.587.723-.107.122-.215.138-.496.002-.28-.138-1.185-.437-2.257-1.393-.834-.743-1.397-1.66-1.562-1.94-.165-.282-.018-.434.122-.573.126-.124.281-.328.422-.493.14-.166.187-.282.281-.469.094-.187.047-.352-.023-.493-.07-.14-.587-1.413-.805-1.942-.211-.515-.425-.443-.587-.451-.15-.008-.323-.01-.497-.01-.174 0-.458.065-.697.323-.24.258-.916.895-.916 2.182 0 1.287.937 2.531 1.068 2.707.13.176 1.84 2.809 4.459 3.941.623.27 1.11.43 1.488.55.627.2 1.2.172 1.65.105.503-.074 1.547-.633 1.765-1.246.219-.613.219-1.139.153-1.246-.067-.109-.244-.166-.525-.307z"/>
+          </svg>
+        </a>
+      )}
 
     </div>
   );

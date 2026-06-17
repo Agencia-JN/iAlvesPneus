@@ -442,24 +442,14 @@ export default function Vitrine({
 
   // 3. Função para gerar o link do WhatsApp parametrizado com indicações
   const handleComprarLink = (pneu: Pneu) => {
-    const nomePneu = `${pneu.marca} - ${pneu.nome}`;
     const pneuMedida = pneu.largura_mm && pneu.perfil_proporcao && pneu.aro_polegadas
       ? `${pneu.largura_mm}/${pneu.perfil_proporcao} R${pneu.aro_polegadas}`
       : pneu.medida;
-    const valorPreco = pneu.preco_vista.toLocaleString('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    });
     
-    let pageUrl = '';
-    if (typeof window !== 'undefined') {
-      pageUrl = window.location.href;
-    }
-
-    let msg = `Olá! Tenho interesse no pneu ${nomePneu} de medida ${pneuMedida} pelo valor de ${valorPreco} que vi no site.\nLink: ${pageUrl}`;
+    let msg = `Olá, vim através do site e tenho interesse no pneu ${pneu.marca} ${pneu.nome} - Medida ${pneuMedida}.`;
 
     if (refParceiro) {
-      msg += `\n[Indicação: ${refParceiro}]`;
+      msg += ` [Indicação: ${refParceiro}]`;
     }
 
     return getWhatsappLink(whatsappNumero, msg);
