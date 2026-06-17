@@ -73,7 +73,10 @@ export default function BannerCarrossel({ banners, heroBackgroundUrl, tempoTrans
   };
 
   return (
-    <section className="relative h-[200px] sm:h-[260px] md:h-[340px] lg:h-[400px] w-full overflow-hidden border-b border-gray-800 bg-zinc-950">
+    <section
+      className="relative w-full overflow-hidden border-b border-gray-800 bg-zinc-950 hidden md:block"
+      style={{ aspectRatio: '1920 / 600' }}
+    >
       
       {/* Container dos Slides */}
       <div className="relative w-full h-full">
@@ -119,37 +122,37 @@ export default function BannerCarrossel({ banners, heroBackgroundUrl, tempoTrans
         })}
       </div>
 
-      {/* Setas de Navegação Super Visíveis de Vidro Fosco */}
+      {/* Setas de Navegação — nas extremidades com fundo semi-transparente e backdrop-blur */}
       {slidesAtivos.length > 1 && (
         <>
           <button
             onClick={handlePrev}
-            className="absolute left-4 sm:left-6 top-1/2 -translate-y-1/2 z-30 w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-black/60 hover:bg-[#DC2626] text-white border border-white/10 hover:border-[#DC2626] transition-all duration-300 rounded-none backdrop-blur-md cursor-pointer text-sm font-black"
+            className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-30 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-black/50 hover:bg-[#DC2626] text-white/80 hover:text-white border border-white/10 hover:border-[#DC2626] transition-all duration-300 rounded-full backdrop-blur-sm cursor-pointer"
             aria-label="Slide anterior"
           >
-            ❮
+            <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
           </button>
           <button
             onClick={handleNext}
-            className="absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 z-30 w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-black/60 hover:bg-[#DC2626] text-white border border-white/10 hover:border-[#DC2626] transition-all duration-300 rounded-none backdrop-blur-md cursor-pointer text-sm font-black"
+            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-30 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-black/50 hover:bg-[#DC2626] text-white/80 hover:text-white border border-white/10 hover:border-[#DC2626] transition-all duration-300 rounded-full backdrop-blur-sm cursor-pointer"
             aria-label="Próximo slide"
           >
-            ❯
+            <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
           </button>
         </>
       )}
 
-      {/* Indicadores de Slide Ativo */}
+      {/* Indicadores de Slide Ativo — posicionados fora da zona de conteúdo */}
       {slidesAtivos.length > 1 && (
-        <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-30 flex gap-2">
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 flex gap-1.5 bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-full">
           {slidesAtivos.map((_, index) => (
             <button
               key={index}
               onClick={() => setCurrentSlide(index)}
-              className={`w-3 h-3 border transition-all duration-300 cursor-pointer ${
+              className={`h-2 rounded-full border transition-all duration-300 cursor-pointer ${
                 index === currentSlide
-                  ? 'bg-[#DC2626] border-[#DC2626] w-6 sm:w-8'
-                  : 'bg-black/60 border-white/20 hover:border-white'
+                  ? 'bg-[#DC2626] border-[#DC2626] w-5'
+                  : 'bg-white/30 border-white/10 hover:bg-white/50 w-2'
               }`}
               aria-label={`Ir para slide ${index + 1}`}
             ></button>

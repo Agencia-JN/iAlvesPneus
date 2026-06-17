@@ -2055,13 +2055,16 @@ export default function CentralDiretoria() {
               {/* Nota Informativa sobre Banner Desktop e Mobile */}
               <div className="bg-blue-950/20 border border-blue-900/30 p-5 rounded-none">
                 <p className="text-xs text-blue-400 font-black uppercase tracking-widest flex items-center gap-2">
-                  <span>💡</span> DIRETRIZ RECOMENDADA DE UPLOAD & UX:
+                  <span>💡</span> DIRETRIZ OBRIGATÓRIA DE ARTE & UPLOAD:
                 </p>
-                <p className="text-[11px] text-gray-300 font-bold mt-1.5 uppercase leading-relaxed">
-                  1. TAMANHO IDEAL DESKTOP: O formato recomendado para as artes e banners rotativos é de exatamente <strong className="text-[#E11D48]">1920x650 px</strong>.
+                <p className="text-[11px] text-gray-300 font-bold mt-2 uppercase leading-relaxed">
+                  1. TAMANHO EXATO OBRIGATÓRIO: Crie a imagem do banner na resolução de <strong className="text-[#E11D48]">1920×600 pixels</strong>. Este é o formato panorâmico (3.2:1) otimizado para exibição sem cortes.
+                </p>
+                <p className="text-[11px] text-gray-300 font-bold mt-1 uppercase leading-relaxed">
+                  2. ZONA SEGURA DE TEXTOS: Mantenha todos os textos e informações importantes <strong className="text-[#E11D48]">centralizados na arte</strong>. Evite colocar textos colados nas bordas laterais, no topo ou na base, pois essas áreas podem ser cortadas em diferentes resoluções de tela.
                 </p>
                 <p className="text-[10px] text-gray-400 font-bold mt-1 uppercase leading-relaxed">
-                  2. COMPORTAMENTO MÓVEL: Para assegurar a maior velocidade de carregamento e foco absoluto nas vendas, os banners promocionais são ocultados em smartphones. A página pública abre o buscador por medidas de pneus no topo de imediato na tela do cliente.
+                  3. COMPORTAMENTO MÓVEL: Para assegurar a maior velocidade de carregamento e foco absoluto nas vendas, os banners promocionais são ocultados em smartphones. A página pública abre o buscador por medidas de pneus no topo de imediato na tela do cliente.
                 </p>
               </div>
 
