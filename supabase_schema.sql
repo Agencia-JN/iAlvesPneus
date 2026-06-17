@@ -131,6 +131,12 @@ CREATE TABLE IF NOT EXISTS configuracoes (
     endereco_completo TEXT DEFAULT '',
     link_google_maps TEXT DEFAULT '',
     link_waze TEXT DEFAULT '',
+    cep TEXT DEFAULT '',
+    rua TEXT DEFAULT '',
+    numero TEXT DEFAULT '',
+    bairro TEXT DEFAULT '',
+    cidade TEXT DEFAULT '',
+    estado TEXT DEFAULT '',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -160,7 +166,13 @@ INSERT INTO configuracoes (
     mapa_ativo,
     endereco_completo,
     link_google_maps,
-    link_waze
+    link_waze,
+    cep,
+    rua,
+    numero,
+    bairro,
+    cidade,
+    estado
 ) VALUES (
     1,
     '5511999999999',
@@ -186,6 +198,12 @@ INSERT INTO configuracoes (
     FALSE,
     '',
     '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
     ''
 )
 ON CONFLICT (id) DO UPDATE SET
@@ -197,7 +215,13 @@ ON CONFLICT (id) DO UPDATE SET
     mapa_ativo = EXCLUDED.mapa_ativo,
     endereco_completo = EXCLUDED.endereco_completo,
     link_google_maps = EXCLUDED.link_google_maps,
-    link_waze = EXCLUDED.link_waze;
+    link_waze = EXCLUDED.link_waze,
+    cep = EXCLUDED.cep,
+    rua = EXCLUDED.rua,
+    numero = EXCLUDED.numero,
+    bairro = EXCLUDED.bairro,
+    cidade = EXCLUDED.cidade,
+    estado = EXCLUDED.estado;
 
 
 -- ═══════════════════════════════════════════════════════════════════

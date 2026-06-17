@@ -2,6 +2,18 @@
 
 ## 🚀 Status Atual: Painel Protegido — Acesso Restrito por Tabela `administradores`
 
+### ✅ Refatoração da Localização com ViaCEP e Automação de GPS (17/06/2026)
+
+- [x] **Nova Migração de Banco de Dados:**
+  - Criado o arquivo `migration_update_endereco_cep.sql` adicionando colunas `cep`, `rua`, `numero`, `bairro`, `cidade` e `estado` na tabela `configuracoes`.
+  - Atualizado o arquivo de esquema global `supabase_schema.sql` com as novas colunas e valores de seed.
+- [x] **Integração ViaCEP no Painel Administrativo:**
+  - Substituído o campo manual de endereço e links manuais de GPS por um formulário de endereço estruturado (CEP, Rua, Número, Bairro, Cidade, Estado).
+  - Implementada busca automática via API ViaCEP ao digitar 8 números no CEP, preenchendo automaticamente Rua, Bairro, Cidade e Estado.
+- [x] **Geração Dinâmica de Links de GPS e Iframe:**
+  - Implementada a constante `enderecoFormatado` no frontend público combinando os campos novos estruturados (Rua, Número - Bairro, Cidade - Estado, CEP).
+  - Automatizada a geração dos links de Google Maps (`https://www.google.com/maps/search/?api=1&query=...`) e Waze (`https://waze.com/ul?q=...`), além do carregamento do `iframe` do mapa.
+
 ### ✅ Otimizações de Carregamento e Créditos JN no Footer (17/06/2026)
 
 - [x] **Prevenção de Flash of Default State no Header:**

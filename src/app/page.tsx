@@ -16,6 +16,12 @@ interface SiteConfigs {
   endereco_completo?: string;
   link_google_maps?: string;
   link_waze?: string;
+  cep?: string;
+  rua?: string;
+  numero?: string;
+  bairro?: string;
+  cidade?: string;
+  estado?: string;
   header_config: {
     logo_url: string;
     aviso_topo: string;
@@ -53,6 +59,12 @@ const CONFIGS_DEFAULT: SiteConfigs = {
   endereco_completo: '',
   link_google_maps: '',
   link_waze: '',
+  cep: '',
+  rua: '',
+  numero: '',
+  bairro: '',
+  cidade: '',
+  estado: '',
   header_config: {
     logo_url: '/logoiAlves.png',
     aviso_topo: '🔥 OFERTA DE INAUGURAÇÃO: FRETE GRÁTIS PARA COMPRAS ACIMA DE 4 PNEUS!',
@@ -145,6 +157,12 @@ export default function Home() {
             endereco_completo: configData.endereco_completo || '',
             link_google_maps: configData.link_google_maps || '',
             link_waze: configData.link_waze || '',
+            cep: configData.cep || '',
+            rua: configData.rua || '',
+            numero: configData.numero || '',
+            bairro: configData.bairro || '',
+            cidade: configData.cidade || '',
+            estado: configData.estado || '',
           });
         }
 
@@ -238,6 +256,18 @@ export default function Home() {
       ]
     };
   }, [configs.whatsapp_numero]);
+
+  const enderecoFormatado = useMemo(() => {
+    if (configs.rua?.trim() && configs.cidade?.trim()) {
+      let formatStr = `${configs.rua.trim()}, ${configs.numero?.trim() || 'S/N'}`;
+      if (configs.bairro?.trim()) formatStr += ` - ${configs.bairro.trim()}`;
+      formatStr += `, ${configs.cidade.trim()}`;
+      if (configs.estado?.trim()) formatStr += ` - ${configs.estado.trim()}`;
+      if (configs.cep?.trim()) formatStr += `, ${configs.cep.trim()}`;
+      return formatStr;
+    }
+    return configs.endereco_completo?.trim() || '';
+  }, [configs.rua, configs.numero, configs.bairro, configs.cidade, configs.estado, configs.cep, configs.endereco_completo]);
 
   return (
     <div className="text-white selection:bg-[#DC2626] selection:text-white w-full max-w-full">
@@ -466,7 +496,7 @@ export default function Home() {
           </div>
         </section>
       )}      {/* ═══ SEÇÃO DE LOCALIZAÇÃO / MAPA ═══ */}
-      {configs.mapa_ativo && configs.endereco_completo && configs.endereco_completo.trim() !== "" && (
+      {configs.mapa_ativo && enderecoFormatado && enderecoFormatado.trim() !== "" && (
         <section className="py-16 sm:py-20 bg-[#0B0B0C] border-t border-gray-900 w-full relative">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
@@ -484,36 +514,32 @@ export default function Home() {
                 </h2>
 
                 <p className="text-sm text-gray-300 font-bold uppercase tracking-wide leading-relaxed font-mono">
-                  {configs.endereco_completo}
+                  {enderecoFormatado}
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-4 pt-2">
-                  {configs.link_google_maps && configs.link_google_maps.trim() !== "" && (
-                    <a
-                      href={configs.link_google_maps}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 flex items-center justify-center gap-2.5 px-6 py-4 bg-transparent border border-gray-800 hover:border-gray-500 hover:bg-white/5 text-white font-extrabold text-xs uppercase tracking-widest transition-all duration-300 rounded-none shadow-md"
-                    >
-                      <svg className="w-4 h-4 fill-current text-[#4285F4]" viewBox="0 0 24 24">
-                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                      </svg>
-                      Abrir no Google Maps
-                    </a>
-                  )}
-                  {configs.link_waze && configs.link_waze.trim() !== "" && (
-                    <a
-                      href={configs.link_waze}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 flex items-center justify-center gap-2.5 px-6 py-4 bg-transparent border border-gray-800 hover:border-gray-500 hover:bg-white/5 text-white font-extrabold text-xs uppercase tracking-widest transition-all duration-300 rounded-none shadow-md"
-                    >
-                      <svg className="w-4 h-4 fill-current text-[#33CCFF]" viewBox="0 0 24 24">
-                        <path d="M19.46 12.39a3.83 3.83 0 0 1 .49.33c.8.68 1.25 1.62 1.25 2.62a3.46 3.46 0 0 1-1.63 2.92c-.67.43-1.47.65-2.28.65a5.54 5.54 0 0 1-.5-.03c-.27.46-.77.78-1.34.78h-4.3c-.64 0-1.17-.38-1.4-.92a4.43 4.43 0 0 1-1.89-.96c-.45-.4-.78-.91-.94-1.48a3.17 3.17 0 0 1-1.67-.32c-.52-.3-.89-.78-1.04-1.35-.12-.47-.07-.97.14-1.4a3.68 3.68 0 0 1 1.77-1.78l-.13-.39a4.8 4.8 0 0 1-.22-1.46c0-2.3 2.05-4.18 4.56-4.18 1.54 0 2.94.7 3.76 1.79a6.22 6.22 0 0 1 4.54 1.76c.48.45.85.99 1.1 1.58.45.45.74 1 .83 1.6zM12.63 7.82c-1.87 0-3.39 1.4-3.39 3.12 0 .33.06.66.17.97l.15.4.38-.13a4.23 4.23 0 0 1 2.69 0l.37.13.16-.4c.1-.31.17-.64.17-.97 0-1.72-1.52-3.12-3.39-3.12zm4.18 4.67a1.64 1.64 0 1 0 0-3.28 1.64 1.64 0 0 0 0 3.28z"/>
-                      </svg>
-                      Ir com o Waze
-                    </a>
-                  )}
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoFormatado)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 flex items-center justify-center gap-2.5 px-6 py-4 bg-transparent border border-gray-800 hover:border-gray-500 hover:bg-white/5 text-white font-extrabold text-xs uppercase tracking-widest transition-all duration-300 rounded-none shadow-md"
+                  >
+                    <svg className="w-4 h-4 fill-current text-[#4285F4]" viewBox="0 0 24 24">
+                      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                    </svg>
+                    Abrir no Google Maps
+                  </a>
+                  <a
+                    href={`https://waze.com/ul?q=${encodeURIComponent(enderecoFormatado)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 flex items-center justify-center gap-2.5 px-6 py-4 bg-transparent border border-gray-800 hover:border-gray-500 hover:bg-white/5 text-white font-extrabold text-xs uppercase tracking-widest transition-all duration-300 rounded-none shadow-md"
+                  >
+                    <svg className="w-4 h-4 fill-current text-[#33CCFF]" viewBox="0 0 24 24">
+                      <path d="M19.46 12.39a3.83 3.83 0 0 1 .49.33c.8.68 1.25 1.62 1.25 2.62a3.46 3.46 0 0 1-1.63 2.92c-.67.43-1.47.65-2.28.65a5.54 5.54 0 0 1-.5-.03c-.27.46-.77.78-1.34.78h-4.3c-.64 0-1.17-.38-1.4-.92a4.43 4.43 0 0 1-1.89-.96c-.45-.4-.78-.91-.94-1.48a3.17 3.17 0 0 1-1.67-.32c-.52-.3-.89-.78-1.04-1.35-.12-.47-.07-.97.14-1.4a3.68 3.68 0 0 1 1.77-1.78l-.13-.39a4.8 4.8 0 0 1-.22-1.46c0-2.3 2.05-4.18 4.56-4.18 1.54 0 2.94.7 3.76 1.79a6.22 6.22 0 0 1 4.54 1.76c.48.45.85.99 1.1 1.58.45.45.74 1 .83 1.6zM12.63 7.82c-1.87 0-3.39 1.4-3.39 3.12 0 .33.06.66.17.97l.15.4.38-.13a4.23 4.23 0 0 1 2.69 0l.37.13.16-.4c.1-.31.17-.64.17-.97 0-1.72-1.52-3.12-3.39-3.12zm4.18 4.67a1.64 1.64 0 1 0 0-3.28 1.64 1.64 0 0 0 0 3.28z"/>
+                    </svg>
+                    Ir com o Waze
+                  </a>
                 </div>
               </div>
 
@@ -525,7 +551,7 @@ export default function Home() {
                   style={{ border: 0 }}
                   loading="lazy"
                   allowFullScreen
-                  src={`https://maps.google.com/maps?q=${encodeURIComponent(configs.endereco_completo || '')}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
+                  src={`https://maps.google.com/maps?q=${encodeURIComponent(enderecoFormatado)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
                 ></iframe>
               </div>
 

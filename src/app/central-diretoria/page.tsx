@@ -62,6 +62,12 @@ interface Configuracoes {
   endereco_completo?: string;
   link_google_maps?: string;
   link_waze?: string;
+  cep?: string;
+  rua?: string;
+  numero?: string;
+  bairro?: string;
+  cidade?: string;
+  estado?: string;
 }
 
 interface Afiliado {
@@ -145,6 +151,12 @@ export default function CentralDiretoria() {
     endereco_completo: '',
     link_google_maps: '',
     link_waze: '',
+    cep: '',
+    rua: '',
+    numero: '',
+    bairro: '',
+    cidade: '',
+    estado: '',
     header_config: {
       logo_url: '/logoiAlves.png',
       aviso_topo: '🔥 OFERTA DE INAUGURAÇÃO: FRETE GRÁTIS PARA COMPRAS ACIMA DE 4 PNEUS!',
@@ -599,6 +611,12 @@ export default function CentralDiretoria() {
           endereco_completo: configData.endereco_completo || '',
           link_google_maps: configData.link_google_maps || '',
           link_waze: configData.link_waze || '',
+          cep: configData.cep || '',
+          rua: configData.rua || '',
+          numero: configData.numero || '',
+          bairro: configData.bairro || '',
+          cidade: configData.cidade || '',
+          estado: configData.estado || '',
         });
       }
       // 6. Administradores
@@ -1327,6 +1345,37 @@ export default function CentralDiretoria() {
     }
   };
 
+  const handleCEPChange = async (val: string) => {
+    // Remover caracteres não numéricos
+    const cleanCEP = val.replace(/\D/g, '');
+    
+    // Limitar a 8 caracteres
+    if (cleanCEP.length > 8) return;
+
+    setConfigs(prev => ({ ...prev, cep: cleanCEP }));
+
+    if (cleanCEP.length === 8) {
+      try {
+        const response = await fetch(`https://viacep.com.br/ws/${cleanCEP}/json/`);
+        const data = await response.json();
+        if (!data.erro) {
+          setConfigs(prev => ({
+            ...prev,
+            rua: data.logradouro || '',
+            bairro: data.bairro || '',
+            cidade: data.localidade || '',
+            estado: data.uf || '',
+          }));
+        } else {
+          showToast('CEP não encontrado.', 'erro');
+        }
+      } catch (err) {
+        console.error('Erro ao buscar CEP:', err);
+        showToast('Erro ao buscar informações do CEP.', 'erro');
+      }
+    }
+  };
+
   const saveConfigs = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -1395,6 +1444,12 @@ export default function CentralDiretoria() {
         endereco_completo: configs.endereco_completo?.trim() || '',
         link_google_maps: configs.link_google_maps?.trim() || '',
         link_waze: configs.link_waze?.trim() || '',
+        cep: configs.cep?.trim() || '',
+        rua: configs.rua?.trim() || '',
+        numero: configs.numero?.trim() || '',
+        bairro: configs.bairro?.trim() || '',
+        cidade: configs.cidade?.trim() || '',
+        estado: configs.estado?.trim() || '',
       };
 
       let saveError;
@@ -2285,44 +2340,87 @@ export default function CentralDiretoria() {
 
                   {configs.mapa_ativo && (
                     <>
-                      <div className="space-y-2">
-                        <label className="block text-[10px] font-bold uppercase text-gray-400">Endereço Completo</label>
-                        <input
-                          type="text"
-                          value={configs.endereco_completo || ''}
-                          onChange={(e) => setConfigs({
-                            ...configs,
-                            endereco_completo: e.target.value
-                          })}
-                          placeholder="Ex: Rodovia BR-101, Km 12, Goiânia - GO"
-                          className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48]"
-                        />
-                      </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <label className="block text-[10px] font-bold uppercase text-gray-400">Link de Compartilhamento do Google Maps</label>
+                          <label className="block text-[10px] font-bold uppercase text-gray-400">CEP</label>
                           <input
                             type="text"
-                            value={configs.link_google_maps || ''}
+                            value={configs.cep || ''}
+                            onChange={(e) => handleCEPChange(e.target.value)}
+                            placeholder="Ex: 01001000"
+                            className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48]"
+                          />
+                          <p className="text-[8px] text-gray-500 font-bold uppercase mt-1">Busca automática ViaCEP após digitar os 8 dígitos.</p>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="block text-[10px] font-bold uppercase text-gray-400">Número</label>
+                          <input
+                            type="text"
+                            value={configs.numero || ''}
                             onChange={(e) => setConfigs({
                               ...configs,
-                              link_google_maps: e.target.value
+                              numero: e.target.value
                             })}
-                            placeholder="Link para abrir no GPS Google Maps"
-                            className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48] text-xs"
+                            placeholder="Ex: 123 ou S/N"
+                            className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="block text-[10px] font-bold uppercase text-gray-400">Rua / Logradouro</label>
+                          <input
+                            type="text"
+                            value={configs.rua || ''}
+                            onChange={(e) => setConfigs({
+                              ...configs,
+                              rua: e.target.value
+                            })}
+                            placeholder="Ex: Avenida Paulista"
+                            className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48]"
                           />
                         </div>
                         <div className="space-y-2">
-                          <label className="block text-[10px] font-bold uppercase text-gray-400">Link de Compartilhamento do Waze</label>
+                          <label className="block text-[10px] font-bold uppercase text-gray-400">Bairro</label>
                           <input
                             type="text"
-                            value={configs.link_waze || ''}
+                            value={configs.bairro || ''}
                             onChange={(e) => setConfigs({
                               ...configs,
-                              link_waze: e.target.value
+                              bairro: e.target.value
                             })}
-                            placeholder="Link para abrir no GPS Waze"
-                            className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48] text-xs"
+                            placeholder="Ex: Bela Vista"
+                            className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="block text-[10px] font-bold uppercase text-gray-400">Cidade</label>
+                          <input
+                            type="text"
+                            value={configs.cidade || ''}
+                            onChange={(e) => setConfigs({
+                              ...configs,
+                              cidade: e.target.value
+                            })}
+                            placeholder="Ex: São Paulo"
+                            className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48]"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="block text-[10px] font-bold uppercase text-gray-400">Estado (UF)</label>
+                          <input
+                            type="text"
+                            value={configs.estado || ''}
+                            onChange={(e) => setConfigs({
+                              ...configs,
+                              estado: e.target.value
+                            })}
+                            placeholder="Ex: SP"
+                            className="w-full bg-black border border-gray-800 px-4 py-2.5 rounded-none text-white focus:outline-none focus:border-[#E11D48]"
                           />
                         </div>
                       </div>
