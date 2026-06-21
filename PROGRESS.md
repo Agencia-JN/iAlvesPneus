@@ -2,6 +2,24 @@
 
 ## 🚀 Status Atual: Painel Protegido — Acesso Restrito por Tabela `administradores`
 
+### ✅ Refinamento UI/UX da Central da Diretoria (21/06/2026)
+
+- **[x] Menu Hambúrguer & Sidebar Responsiva:**
+  - Implementado o estado `sidebarCollapsed` (recolhido por padrão no desktop), exibindo apenas ícones de forma centralizada e elegante. O painel se expande mostrando rótulos textuais ao clicar no botão de hambúrguer do topbar.
+  - Implementada a barra lateral retrátil (estilo drawer) no mobile e tablet, com sobreposição e backdrop escuro para fechamento dinâmico. A barra se fecha automaticamente ao clicar em qualquer item da navegação.
+- **[x] Logo Dinâmica no Carregamento (Loading):**
+  - Implementado sistema de cache no `localStorage` (`ialves_cached_logo`) para guardar o logotipo configurado no painel da diretoria. A tela de carregamento de autorização consome este cache para evitar qualquer flash ou exibição de logos antigas em fallback.
+- **[x] Exclusão de Fotos no Modal do Produto:**
+  - Adicionado o botão "Limpar Seleção" no preview de imagens dentro do modal de pneu para resetar o arquivo selecionado localmente sem precisar recarregar o modal.
+  - Implementada alteração automática de imagens padrão (Liso/Borrachudo) ao trocar a categoria no modal caso o produto ainda não tenha imagem personalizada.
+- **[x] Módulo e Dropdown de Planilha (Backup & Template):**
+  - O botão de "Baixar Planilha" agora abre um menu Dropdown contendo duas opções claras: "Baixar Planilha Preenchida (Backup)" e "Baixar Modelo Vazio (Para Preencher)".
+  - Formatado o CSV gerado utilizando ponto e vírgula (`;`) como separador nativo para garantir compatibilidade direta e sem erros ao abrir no Microsoft Excel no Brasil.
+  - Atualizada a lógica de importação de planilhas (`handleCsvImport`) para aceitar tanto arquivos separados por vírgula quanto por ponto e vírgula de forma inteligente.
+- **[x] Otimização e Condensação de Tabela (Fim do Scroll Horizontal):**
+  - Removidas as colunas técnicas separadas de "Largura", "Perfil", "Aro" e "Sulco", condensando todas as informações técnicas na nova coluna "Especificações" (ex: `295/80 R22.5 | Sulco: 15 mm`).
+  - A tabela do catálogo tornou-se altamente responsiva e compacta, eliminando a necessidade de scroll horizontal em quase todos os layouts.
+
 ### ✅ Refatoração da Localização com ViaCEP e Automação de GPS (17/06/2026)
 
 - [x] **Nova Migração de Banco de Dados:**

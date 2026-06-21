@@ -236,6 +236,9 @@ export default function CentralDiretoria() {
   // Monitor de recursos
   const [dbSize, setDbSize] = useState<string>('Calculando...');
   const [removingLogo, setRemovingLogo] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
 
   const getStoragePathFromUrl = (url: string, bucketName: string): string | null => {
     if (!url) return null;
@@ -619,6 +622,9 @@ export default function CentralDiretoria() {
           cidade: configData.cidade || '',
           estado: configData.estado || '',
         });
+        if (configData.header_config?.logo_url) {
+          localStorage.setItem('ialves_cached_logo', configData.header_config.logo_url);
+        }
       }
       // 6. Administradores
       const adminsRes = results[7];
@@ -916,6 +922,25 @@ export default function CentralDiretoria() {
     showToast('Foto removida. A imagem padrão da categoria será utilizada.', 'info');
   };
 
+  const clearLocalImage = () => {
+    setPneuForm(prev => ({
+      ...prev,
+      imagem_file: null,
+      imagem_url: prev.categoria === 'Liso' ? '/pneu_liso.png' : '/pneu_borrachudo.png'
+    }));
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    showToast('Seleção de imagem limpa.', 'info');
+  };
+
+  const handleCategoryChange = (cat: 'Borrachudo' | 'Liso') => {
+    const isCurrentlyDefault = pneuForm.imagem_url === '/pneu_borrachudo.png' || pneuForm.imagem_url === '/pneu_liso.png' || !pneuForm.imagem_url;
+    setPneuForm(prev => ({
+      ...prev,
+      categoria: cat,
+      imagem_url: isCurrentlyDefault ? (cat === 'Liso' ? '/pneu_liso.png' : '/pneu_borrachudo.png') : prev.imagem_url
+    }));
+  };
+
   // Compressão Nativa WebP (Banner)
   const handleBannerImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1191,16 +1216,38 @@ export default function CentralDiretoria() {
 
   const downloadTemplateCsv = () => {
     const headers = 'nome,marca,categoria,largura,perfil,aro,preco_a_vista,quantidade_estoque';
-    const exampleRow = 'Pneu Exemplo Borrachudo,Marca Premium,Borrachudo,295,80,22.5,1299.90,10';
-    const csvContent = `${headers}\n${exampleRow}`;
+    const csvContent = `${headers}\n`;
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'template_estoque.csv';
+    link.download = 'modelo_estoque_vazio.csv';
     link.click();
     URL.revokeObjectURL(url);
-    showToast('Template CSV baixado! Preencha e reimporte.', 'info');
+    showToast('Modelo vazio baixado! Preencha as colunas e reimporte.', 'info');
+    setShowDownloadDropdown(false);
+  };
+
+  const downloadBackupCsv = () => {
+    if (pneus.length === 0) {
+      showToast('Nenhum pneu cadastrado para exportar.', 'info');
+      setShowDownloadDropdown(false);
+      return;
+    }
+    const headers = 'nome,marca,categoria,largura,perfil,aro,preco_a_vista,quantidade_estoque';
+    const rows = pneus.map(p => 
+      `"${p.nome}","${p.marca}","${p.categoria}",${p.largura_mm || 295},${p.perfil_proporcao || 80},${p.aro_polegadas || '22.5'},${p.preco_vista.toFixed(2)},${p.quantidade_estoque ?? 0}`
+    ).join('\n');
+    const csvContent = `${headers}\n${rows}`;
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `backup_estoque_${new Date().toISOString().slice(0,10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    showToast(`Backup de ${pneus.length} pneus exportado com sucesso!`);
+    setShowDownloadDropdown(false);
   };
 
   const handleCsvImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1218,7 +1265,10 @@ export default function CentralDiretoria() {
       // Ignorar cabeçalho (linha 0) e processar linhas de dados
       const products: any[] = [];
       for (let i = 1; i < lines.length; i++) {
-        const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+        const line = lines[i].trim();
+        if (!line) continue;
+        const delimiter = line.includes(';') ? ';' : ',';
+        const cols = line.split(delimiter).map(c => c.trim().replace(/^"|"$/g, ''));
         if (cols.length < 8 || !cols[0]) continue; // pular linhas vazias ou incompletas
 
         const nome = cols[0];
@@ -1716,12 +1766,15 @@ export default function CentralDiretoria() {
 
   // Tela de carregamento de autenticação — exibida enquanto verifica a sessão
   if (authLoading) {
+    const cachedLogo = typeof window !== 'undefined' ? localStorage.getItem('ialves_cached_logo') : null;
     return (
       <div className="min-h-screen bg-[#0B0B0C] flex items-center justify-center">
         <div className="flex flex-col items-center gap-6">
-          <div className="relative w-48 h-12 flex items-center justify-center">
-            <img src="/logoiAlves.png" alt="iAlves Pneus" className="h-full w-auto object-contain" />
-          </div>
+          {cachedLogo ? (
+            <img src={cachedLogo} alt="iAlves Pneus" className="h-16 w-auto object-contain" />
+          ) : (
+            <div className="h-16 w-16 bg-gray-800 animate-pulse rounded-full" />
+          )}
           <div className="w-8 h-8 border-2 border-[#E11D48] border-t-transparent rounded-full animate-spin" />
           <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest">Verificando acesso...</p>
         </div>
@@ -1779,22 +1832,39 @@ export default function CentralDiretoria() {
       
       {/* Topbar do Administrador */}
       <header className="border-b border-gray-900 bg-black/60 backdrop-blur-md px-6 py-4 flex items-center justify-between z-40 sticky top-0">
-        <div className="flex items-center gap-4">
-          <div className="relative w-44 h-11 shrink-0 flex items-center justify-start">
+        <div className="flex items-center gap-3">
+          {/* Botão Hambúrguer */}
+          <button
+            onClick={() => {
+              if (window.innerWidth < 1024) {
+                setSidebarOpen(!sidebarOpen);
+              } else {
+                setSidebarCollapsed(!sidebarCollapsed);
+              }
+            }}
+            className="p-2 border border-gray-800 hover:border-gray-600 bg-white/5 hover:bg-white/10 text-white rounded-none cursor-pointer flex items-center justify-center transition-all focus:outline-none"
+            title={sidebarCollapsed ? "Expandir Menu" : "Recolher Menu"}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+
+          <div className="relative w-36 h-9 shrink-0 hidden sm:flex items-center justify-start">
             <img src={configs.header_config?.logo_url || "/logoiAlves.png"} alt="iAlves Logo" className="h-full w-auto object-contain" />
           </div>
           <div>
-            <h1 className="text-base font-black uppercase tracking-widest text-white leading-none">
+            <h1 className="text-sm font-black uppercase tracking-widest text-white leading-none">
               Diretoria <span className="text-[#E11D48]">iAlves</span>
             </h1>
-            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">
+            <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-1">
               PAINEL ADMINISTRATIVO
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-4">
-          <span className="hidden sm:inline-block text-xs text-gray-400 font-bold">
+          <span className="hidden md:inline-block text-xs text-gray-400 font-bold">
             Conectado: <span className="text-white">{userEmail}</span>
           </span>
           <button
@@ -1807,68 +1877,105 @@ export default function CentralDiretoria() {
       </header>
 
       {/* Grid Principal do Painel */}
-      <div className="flex flex-col lg:flex-row flex-1 font-sans">
+      <div className="flex flex-col lg:flex-row flex-1 font-sans relative">
         
+        {/* Backdrop para Mobile */}
+        {sidebarOpen && (
+          <div 
+            onClick={() => setSidebarOpen(false)}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-30 lg:hidden"
+          />
+        )}
+
         {/* Barra Lateral de Menus */}
-        <aside className="w-full lg:w-64 bg-black/20 border-r border-gray-900 shrink-0 p-6 space-y-2 lg:space-y-4">
-          <p className="text-[10px] text-gray-600 font-black uppercase tracking-widest mb-4 px-3">Navegação Geral</p>
+        <aside className={`
+          fixed inset-y-0 left-0 z-30 bg-[#0B0B0C] border-r border-gray-900 p-6 space-y-4 transition-all duration-300
+          lg:static lg:block shrink-0
+          ${sidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0'}
+          ${sidebarCollapsed ? 'lg:w-20 lg:p-3' : 'lg:w-64'}
+        `}>
+          <p className={`text-[10px] text-gray-600 font-black uppercase tracking-widest mb-4 px-3 ${sidebarCollapsed ? 'lg:hidden' : ''}`}>Navegação Geral</p>
           
           <button
-            onClick={() => changeTab('pneus')}
-            className={`w-full text-left px-4 py-3 text-xs font-extrabold uppercase tracking-widest transition-all duration-300 rounded-none flex items-center gap-3 cursor-pointer ${
+            onClick={() => { changeTab('pneus'); setSidebarOpen(false); }}
+            title="Gerenciar Estoque"
+            className={`w-full px-4 py-3 text-xs font-extrabold uppercase tracking-widest transition-all duration-300 rounded-none flex items-center cursor-pointer ${
+              sidebarCollapsed ? 'lg:justify-center lg:px-2' : 'justify-start gap-3'
+            } ${
               activeTab === 'pneus' ? 'bg-[#E11D48] text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            📊 Gerenciar Estoque
+            <span className="text-base shrink-0">📊</span>
+            <span className={`${sidebarCollapsed ? 'lg:hidden' : 'inline'}`}>Gerenciar Estoque</span>
           </button>
 
           <button
-            onClick={() => changeTab('banners')}
-            className={`w-full text-left px-4 py-3 text-xs font-extrabold uppercase tracking-widest transition-all duration-300 rounded-none flex items-center gap-3 cursor-pointer ${
+            onClick={() => { changeTab('banners'); setSidebarOpen(false); }}
+            title="Banners Rotativos"
+            className={`w-full px-4 py-3 text-xs font-extrabold uppercase tracking-widest transition-all duration-300 rounded-none flex items-center cursor-pointer ${
+              sidebarCollapsed ? 'lg:justify-center lg:px-2' : 'justify-start gap-3'
+            } ${
               activeTab === 'banners' ? 'bg-[#E11D48] text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            🖼 Banners Rotativos
+            <span className="text-base shrink-0">🖼</span>
+            <span className={`${sidebarCollapsed ? 'lg:hidden' : 'inline'}`}>Banners Rotativos</span>
           </button>
 
           <button
-            onClick={() => changeTab('configuracoes')}
-            className={`w-full text-left px-4 py-3 text-xs font-extrabold uppercase tracking-widest transition-all duration-300 rounded-none flex items-center gap-3 cursor-pointer ${
+            onClick={() => { changeTab('configuracoes'); setSidebarOpen(false); }}
+            title="Configurações Globais"
+            className={`w-full px-4 py-3 text-xs font-extrabold uppercase tracking-widest transition-all duration-300 rounded-none flex items-center cursor-pointer ${
+              sidebarCollapsed ? 'lg:justify-center lg:px-2' : 'justify-start gap-3'
+            } ${
               activeTab === 'configuracoes' ? 'bg-[#E11D48] text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            ⚙ Configurações Globais
+            <span className="text-base shrink-0">⚙</span>
+            <span className={`${sidebarCollapsed ? 'lg:hidden' : 'inline'}`}>Configurações</span>
           </button>
 
           <button
-            onClick={() => changeTab('afiliados')}
-            className={`w-full text-left px-4 py-3 text-xs font-extrabold uppercase tracking-widest transition-all duration-300 rounded-none flex items-center gap-3 cursor-pointer ${
+            onClick={() => { changeTab('afiliados'); setSidebarOpen(false); }}
+            title="Rede de Afiliados"
+            className={`w-full px-4 py-3 text-xs font-extrabold uppercase tracking-widest transition-all duration-300 rounded-none flex items-center cursor-pointer ${
+              sidebarCollapsed ? 'lg:justify-center lg:px-2' : 'justify-start gap-3'
+            } ${
               activeTab === 'afiliados' ? 'bg-[#E11D48] text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            🤝 Rede de Afiliados
+            <span className="text-base shrink-0">🤝</span>
+            <span className={`${sidebarCollapsed ? 'lg:hidden' : 'inline'}`}>Afiliados</span>
           </button>
 
           <button
-            onClick={() => changeTab('auditoria')}
-            className={`w-full text-left px-4 py-3 text-xs font-extrabold uppercase tracking-widest transition-all duration-300 rounded-none flex items-center gap-3 cursor-pointer ${
+            onClick={() => { changeTab('auditoria'); setSidebarOpen(false); }}
+            title="Auditoria de Segurança"
+            className={`w-full px-4 py-3 text-xs font-extrabold uppercase tracking-widest transition-all duration-300 rounded-none flex items-center cursor-pointer ${
+              sidebarCollapsed ? 'lg:justify-center lg:px-2' : 'justify-start gap-3'
+            } ${
               activeTab === 'auditoria' ? 'bg-[#E11D48] text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            🛡 Auditoria de Segurança
+            <span className="text-base shrink-0">🛡</span>
+            <span className={`${sidebarCollapsed ? 'lg:hidden' : 'inline'}`}>Auditoria</span>
           </button>
 
           <button
-            onClick={() => changeTab('acessos')}
-            className={`w-full text-left px-4 py-3 text-xs font-extrabold uppercase tracking-widest transition-all duration-300 rounded-none flex items-center gap-3 cursor-pointer ${
+            onClick={() => { changeTab('acessos'); setSidebarOpen(false); }}
+            title="Gestão de Acesso"
+            className={`w-full px-4 py-3 text-xs font-extrabold uppercase tracking-widest transition-all duration-300 rounded-none flex items-center cursor-pointer ${
+              sidebarCollapsed ? 'lg:justify-center lg:px-2' : 'justify-start gap-3'
+            } ${
               activeTab === 'acessos' ? 'bg-[#E11D48] text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            🔐 Gestão de Acesso
+            <span className="text-base shrink-0">🔐</span>
+            <span className={`${sidebarCollapsed ? 'lg:hidden' : 'inline'}`}>Gestão Acesso</span>
           </button>
 
           {/* Monitor de Uso de Recursos */}
-          <div className="pt-6 border-t border-gray-900 space-y-4">
+          <div className={`pt-6 border-t border-gray-900 space-y-4 ${sidebarCollapsed ? 'lg:hidden' : ''}`}>
             <p className="text-[10px] text-gray-600 font-black uppercase tracking-widest px-3">Monitor de Recursos</p>
             <div className="glass-panel p-4 rounded-none border-l-2 border-l-[#E11D48] bg-black/40 space-y-3">
               <div>
@@ -1953,14 +2060,37 @@ export default function CentralDiretoria() {
               <div className="glass-panel rounded-none p-4 border border-gray-900 flex flex-wrap items-center gap-3">
                 <span className="text-[10px] text-gray-500 font-black uppercase tracking-widest mr-auto">Ferramentas em Massa</span>
 
-                <button
-                  onClick={downloadTemplateCsv}
-                  disabled={isLoading}
-                  className="px-4 py-2.5 border border-gray-800 hover:border-gray-600 bg-white/5 hover:bg-white/10 text-white text-[10px] font-black uppercase tracking-wider cursor-pointer transition-all rounded-none flex items-center gap-2 disabled:opacity-50"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                  Baixar Planilha Padrão
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
+                    disabled={isLoading}
+                    className="px-4 py-2.5 border border-gray-800 hover:border-gray-600 bg-white/5 hover:bg-white/10 text-white text-[10px] font-black uppercase tracking-wider cursor-pointer transition-all rounded-none flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    Baixar Planilha
+                    <span className="text-[8px] opacity-75">▼</span>
+                  </button>
+
+                  {showDownloadDropdown && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setShowDownloadDropdown(false)} />
+                      <div className="absolute left-0 mt-1 w-64 bg-black border border-gray-800 rounded-none shadow-xl z-20 divide-y divide-gray-900">
+                        <button
+                          onClick={downloadBackupCsv}
+                          className="w-full text-left px-4 py-3 text-[10px] font-bold text-gray-300 hover:text-white hover:bg-white/5 uppercase transition-colors"
+                        >
+                          📥 Baixar Planilha Preenchida (Backup)
+                        </button>
+                        <button
+                          onClick={downloadTemplateCsv}
+                          className="w-full text-left px-4 py-3 text-[10px] font-bold text-gray-300 hover:text-white hover:bg-white/5 uppercase transition-colors"
+                        >
+                          📄 Baixar Modelo Vazio (Para Preencher)
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
 
                 <button
                   onClick={() => csvFileInputRef.current?.click()}
@@ -1996,10 +2126,7 @@ export default function CentralDiretoria() {
                       <th className="p-4">Foto</th>
                       <th className="p-4">Marca / Nome</th>
                       <th className="p-4">Categoria</th>
-                      <th className="p-4">Medida Nominal</th>
-                      <th className="p-4">Largura</th>
-                      <th className="p-4">Perfil</th>
-                      <th className="p-4">Aro</th>
+                      <th className="p-4">Especificações</th>
                       <th className="p-4">Preço à Vista</th>
                       <th className="p-4 text-center">Estoque</th>
                       <th className="p-4 text-center">Status</th>
@@ -2040,10 +2167,10 @@ export default function CentralDiretoria() {
                             {pneu.nome}
                           </td>
                           <td className="p-4 font-semibold text-gray-300">{pneu.categoria}</td>
-                          <td className="p-4 font-black text-[#E11D48]">{pneu.medida}</td>
-                          <td className="p-4 font-semibold text-gray-300">{pneu.largura_mm || 295} mm</td>
-                          <td className="p-4 font-semibold text-gray-300">{pneu.perfil_proporcao || 80}%</td>
-                          <td className="p-4 font-semibold text-gray-300">R{pneu.aro_polegadas || '22.5'}</td>
+                          <td className="p-4 font-black text-white">
+                            <span className="block text-[11px] text-[#E11D48] font-black">{pneu.medida}</span>
+                            <span className="block text-[9px] text-gray-500 font-bold uppercase mt-0.5">Sulco: {pneu.sulco_mm} mm</span>
+                          </td>
                           <td className="p-4 font-black text-white">{formatCurrency(pneu.preco_vista)}</td>
                           <td className="p-4 text-center font-bold text-gray-200">
                             {pneu.quantidade_estoque !== undefined ? pneu.quantidade_estoque : 10}
@@ -3284,7 +3411,7 @@ export default function CentralDiretoria() {
                   <label className="block text-[9px] text-gray-400 font-black uppercase tracking-wider">Categoria</label>
                   <select
                     value={pneuForm.categoria}
-                    onChange={(e) => setPneuForm({ ...pneuForm, categoria: e.target.value as 'Borrachudo' | 'Liso' })}
+                    onChange={(e) => handleCategoryChange(e.target.value as 'Borrachudo' | 'Liso')}
                     className="w-full bg-black border border-gray-800 px-3 py-2 text-xs rounded-none text-white focus:outline-none focus:border-[#E11D48]"
                   >
                     <option value="Borrachudo">Borrachudo</option>
@@ -3421,24 +3548,35 @@ export default function CentralDiretoria() {
                     </div>
                     <div className="space-y-1">
                       <p className="text-[9px] text-gray-500 font-bold uppercase truncate max-w-[180px]">
-                        {pneuForm.imagem_url.includes('/pneus/') ? 'Foto personalizada (Storage)' : 'Imagem padrão da categoria'}
+                        {pneuForm.imagem_file ? 'Nova imagem selecionada' : pneuForm.imagem_url.includes('/pneus/') ? 'Foto personalizada (Storage)' : 'Imagem padrão da categoria'}
                       </p>
-                      {(pneuForm.imagem_url.includes('/pneus/') || pneuForm.imagem_file) && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            askConfirmation(
-                              'Remover Foto do Produto',
-                              'Deseja remover a foto personalizada deste pneu? Será restaurada a imagem padrão da categoria.',
-                              () => removeProductImage(editingPneu?.id || undefined, pneuForm.imagem_url, pneuForm.categoria)
-                            );
-                          }}
-                          className="px-2.5 py-1 border border-red-900/40 bg-red-950/10 hover:bg-red-950/30 text-red-400 text-[9px] font-black uppercase tracking-wider cursor-pointer transition-all rounded-none flex items-center gap-1"
-                        >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                          Remover Foto
-                        </button>
-                      )}
+                      <div className="flex flex-wrap gap-2">
+                        {pneuForm.imagem_file && (
+                          <button
+                            type="button"
+                            onClick={clearLocalImage}
+                            className="px-2 py-1 border border-amber-900/40 bg-amber-950/10 hover:bg-amber-950/30 text-amber-400 text-[9px] font-black uppercase tracking-wider cursor-pointer transition-all rounded-none flex items-center gap-1"
+                          >
+                            Limpar Seleção
+                          </button>
+                        )}
+                        {pneuForm.imagem_url.includes('/pneus/') && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              askConfirmation(
+                                'Remover Foto do Produto',
+                                'Deseja remover a foto personalizada deste pneu? Será restaurada a imagem padrão da categoria.',
+                                () => removeProductImage(editingPneu?.id || undefined, pneuForm.imagem_url, pneuForm.categoria)
+                              );
+                            }}
+                            className="px-2.5 py-1 border border-red-900/40 bg-red-950/10 hover:bg-red-950/30 text-red-400 text-[9px] font-black uppercase tracking-wider cursor-pointer transition-all rounded-none flex items-center gap-1"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            Excluir Foto
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
