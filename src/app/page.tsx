@@ -66,7 +66,7 @@ const CONFIGS_DEFAULT: SiteConfigs = {
   cidade: '',
   estado: '',
   header_config: {
-    logo_url: '/logoiAlves.png',
+    logo_url: '',
     aviso_topo: '🔥 OFERTA DE INAUGURAÇÃO: FRETE GRÁTIS PARA COMPRAS ACIMA DE 4 PNEUS!',
     aviso_ativo: true,
   },
@@ -288,12 +288,16 @@ export default function Home() {
           </div>
         )}
         <header className="w-full bg-black/40 backdrop-blur-md border-b border-gray-800/40">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-            <img
-              src={configs.header_config.logo_url}
-              alt="iAlves Pneus"
-              className="h-14 w-auto object-contain shrink-0"
-            />
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-24 flex items-center justify-between">
+            {configs.header_config.logo_url ? (
+              <img
+                src={configs.header_config.logo_url}
+                alt="iAlves Pneus"
+                className="h-20 w-auto object-contain shrink-0"
+              />
+            ) : (
+              <div className="h-20 w-20 bg-gray-800 animate-pulse rounded-full shrink-0" />
+            )}
             <div className="flex items-center gap-5">
               <a
                 href={siteLoaded ? getWhatsappLink(configs.whatsapp_numero, 'Olá, vim através do site.') : '#'}
@@ -320,62 +324,47 @@ export default function Home() {
       </div>
 
       {/* Spacer Desktop */}
-      <div className="hidden md:block h-[112px]"></div>
+      <div className="hidden md:block h-[128px]"></div>
 
       {/* ═══ MOBILE HEADER ═══ */}
-      <div className="block md:hidden w-full bg-[#0B0B0C] border-b border-gray-900">
+      <div className="block md:hidden w-full">
         {avisoFreteAtivo && (
-          <div className="bg-[#DC2626] text-white text-center py-2 px-3 text-[10px] font-black uppercase tracking-wider w-full flex items-center justify-center border-b border-red-700">
+          <div className="bg-[#DC2626] text-white text-center py-2 px-3 text-[10px] font-black uppercase tracking-wider w-full flex items-center justify-center">
             <div className="flex items-center justify-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping shrink-0"></span>
               <span className="leading-none">{configs.header_config.aviso_topo}</span>
             </div>
           </div>
         )}
-        <div className="bg-[#121214] h-10 px-4 flex items-center justify-between border-b border-gray-800/60">
-          <div className="flex items-center gap-4">
+        <div className="bg-[#0B0B0C] px-4 py-3 flex items-center justify-between border-b border-gray-800/60">
+          {configs.header_config.logo_url ? (
+            <img
+              src={configs.header_config.logo_url}
+              alt="iAlves Pneus"
+              className="h-16 sm:h-20 w-auto object-contain"
+            />
+          ) : (
+            <div className="h-16 w-16 sm:h-20 sm:w-20 bg-gray-800 animate-pulse rounded-full" />
+          )}
+          <div className="flex items-center gap-3">
             <a
               href={getWhatsappLink(configs.whatsapp_numero, 'Olá, vim através do site.')}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-[#22C55E] text-[11px] font-black tracking-wider transition-colors hover:text-[#4ADE80]"
+              className="w-10 h-10 flex items-center justify-center bg-[#25D366] hover:bg-[#1EBE5D] text-white rounded-full shadow-lg shadow-[#25D366]/30 transition-all duration-300"
+              aria-label="WhatsApp"
             >
-              <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
                 <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.965C16.57 1.977 14.1 1.053 11.998 1.053c-5.444 0-9.87 4.372-9.874 9.802-.001 1.77.472 3.498 1.372 5.068L2.536 21.5l5.111-1.346zm10.748-5.321c-.281-.14-.165-.37-.842-.71-.165-.083-.289-.124-.413.062-.124.186-.48.601-.587.723-.107.122-.215.138-.496.002-.28-.138-1.185-.437-2.257-1.393-.834-.743-1.397-1.66-1.562-1.94-.165-.282-.018-.434.122-.573.126-.124.281-.328.422-.493.14-.166.187-.282.281-.469.094-.187.047-.352-.023-.493-.07-.14-.587-1.413-.805-1.942-.211-.515-.425-.443-.587-.451-.15-.008-.323-.01-.497-.01-.174 0-.458.065-.697.323-.24.258-.916.895-.916 2.182 0 1.287.937 2.531 1.068 2.707.13.176 1.84 2.809 4.459 3.941.623.27 1.11.43 1.488.55.627.2 1.2.172 1.65.105.503-.074 1.547-.633 1.765-1.246.219-.613.219-1.139.153-1.246-.067-.109-.244-.166-.525-.307z"/>
               </svg>
-              {!siteLoaded ? (
-                <span className="h-3 w-20 bg-gray-800 animate-pulse rounded-sm inline-block"></span>
-              ) : (
-                <span className="leading-none">{telFormatada}</span>
-              )}
             </a>
             <a
-              href={`tel:${configs.whatsapp_numero}`}
-              className="flex items-center gap-1.5 text-white text-[11px] font-black tracking-wider transition-colors hover:text-gray-300"
+              href="#vitrine-produtos"
+              className="px-3 py-2 bg-[#DC2626] hover:bg-[#B91C1C] text-white font-black text-[9px] uppercase tracking-widest transition-colors rounded-none"
             >
-              <svg className="w-3.5 h-3.5 fill-current shrink-0" viewBox="0 0 24 24">
-                <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
-              </svg>
-              {!siteLoaded ? (
-                <span className="h-3 w-20 bg-gray-800 animate-pulse rounded-sm inline-block"></span>
-              ) : (
-                <span className="leading-none">{telFormatada}</span>
-              )}
+              Estoque
             </a>
           </div>
-          <a
-            href="#vitrine-produtos"
-            className="px-3 py-1.5 bg-[#DC2626] hover:bg-[#B91C1C] text-white font-black text-[9px] uppercase tracking-widest transition-colors rounded-none"
-          >
-            Estoque
-          </a>
-        </div>
-        <div className="py-6 px-4 flex items-center justify-center bg-[#0B0B0C]">
-          <img
-            src={configs.header_config.logo_url}
-            alt="iAlves Pneus"
-            className="h-10 sm:h-12 w-auto object-contain"
-          />
         </div>
       </div>
 
@@ -567,12 +556,16 @@ export default function Home() {
 
             {/* Marca & Bio */}
             <div className="space-y-4 col-span-1 md:col-span-2">
-              <div className="relative w-56 h-12 flex items-center justify-start">
-                <img
-                  src={configs.header_config.logo_url}
-                  alt="iAlves Pneus"
-                  className="h-full w-auto object-contain"
-                />
+              <div className="relative flex items-center justify-start">
+                {configs.header_config.logo_url ? (
+                  <img
+                    src={configs.header_config.logo_url}
+                    alt="iAlves Pneus"
+                    className="h-16 w-auto object-contain"
+                  />
+                ) : (
+                  <div className="h-16 w-16 bg-gray-800 animate-pulse rounded-full" />
+                )}
               </div>
               <p className="text-gray-400 text-xs leading-relaxed max-w-sm">
                 Distribuidor especializado em pneus novos de alta performance e robustez extrema. Soluções de tração máxima para frotas de caminhões, ônibus e implementos rodoviários com o melhor custo-benefício do mercado.
