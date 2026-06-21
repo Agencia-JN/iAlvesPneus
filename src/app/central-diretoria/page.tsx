@@ -871,6 +871,51 @@ export default function CentralDiretoria() {
     }
   };
 
+  // Remover foto do produto (apaga do Storage e reseta para imagem padrão da categoria)
+  const removeProductImage = async (pneuId?: string, currentUrl?: string, categoria?: string) => {
+    const urlToRemove = currentUrl || pneuForm.imagem_url;
+    const cat = categoria || pneuForm.categoria;
+    const defaultImg = cat === 'Liso' ? '/pneu_liso.png' : '/pneu_borrachudo.png';
+
+    // Se é uma imagem do Storage (contém o bucket 'pneus'), remove do Storage
+    if (urlToRemove && urlToRemove.includes('/pneus/')) {
+      const storagePath = getStoragePathFromUrl(urlToRemove, 'pneus');
+      if (storagePath) {
+        try {
+          await supabase.storage.from('pneus').remove([storagePath]);
+        } catch (err) {
+          console.warn('[removeProductImage] Erro ao remover do storage:', err);
+        }
+      }
+    }
+
+    // Se um pneuId foi passado, atualiza direto no banco (ação rápida da tabela)
+    if (pneuId) {
+      setLoading(true);
+      try {
+        const { error } = await supabase.from('pneus').update({ imagem_url: defaultImg }).eq('id', pneuId);
+        if (error) throw error;
+        await logActivity('Estoque', `Removeu a foto personalizada do pneu (ID: ${pneuId}). Restaurou imagem padrão.`);
+        showToast('Foto do produto removida e restaurada para o padrão!');
+        loadDatabaseData().catch(e => console.error(e));
+      } catch (err: any) {
+        showToast(err.message || 'Erro ao remover foto do produto.', 'erro');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // Se estamos no modal de edição, atualiza apenas o formulário local
+    setPneuForm(prev => ({
+      ...prev,
+      imagem_file: null,
+      imagem_url: defaultImg,
+    }));
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    showToast('Foto removida. A imagem padrão da categoria será utilizada.', 'info');
+  };
+
   // Compressão Nativa WebP (Banner)
   const handleBannerImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1968,8 +2013,26 @@ export default function CentralDiretoria() {
                         <tr key={pneu.id} className="hover:bg-white/2 transition-colors">
                           <td className="p-4 text-center text-gray-500 font-bold">{index + 1}</td>
                           <td className="p-4">
-                            <div className="relative w-12 h-12 bg-black border border-gray-800 p-1 flex items-center justify-center">
-                              <Image src={pneu.imagem_url} alt={pneu.nome} width={40} height={40} unoptimized className="object-contain max-h-full" />
+                            <div className="group relative">
+                              <div className="relative w-12 h-12 bg-black border border-gray-800 p-1 flex items-center justify-center">
+                                <Image src={pneu.imagem_url} alt={pneu.nome} width={40} height={40} unoptimized className="object-contain max-h-full" />
+                              </div>
+                              {pneu.imagem_url && pneu.imagem_url.includes('/pneus/') && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    askConfirmation(
+                                      'Remover Foto do Produto',
+                                      `Deseja remover a foto personalizada do pneu "${pneu.nome}"? Será restaurada a imagem padrão da categoria.`,
+                                      () => removeProductImage(pneu.id, pneu.imagem_url, pneu.categoria)
+                                    );
+                                  }}
+                                  title="Remover foto personalizada"
+                                  className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 hover:bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-md"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                              )}
                             </div>
                           </td>
                           <td className="p-4 font-extrabold text-white">
@@ -3352,8 +3415,31 @@ export default function CentralDiretoria() {
                 />
                 {isUploading && <p className="text-[10px] text-amber-500 font-bold animate-pulse">Comprimindo...</p>}
                 {pneuForm.imagem_url && (
-                  <div className="mt-2 relative w-16 h-16 bg-black border border-gray-900 p-1 flex items-center justify-center">
-                    <Image src={pneuForm.imagem_url} alt="Previa" width={55} height={55} unoptimized className="object-contain max-h-full" />
+                  <div className="mt-2 flex items-end gap-3">
+                    <div className="relative w-16 h-16 bg-black border border-gray-900 p-1 flex items-center justify-center shrink-0">
+                      <Image src={pneuForm.imagem_url} alt="Previa" width={55} height={55} unoptimized className="object-contain max-h-full" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[9px] text-gray-500 font-bold uppercase truncate max-w-[180px]">
+                        {pneuForm.imagem_url.includes('/pneus/') ? 'Foto personalizada (Storage)' : 'Imagem padrão da categoria'}
+                      </p>
+                      {(pneuForm.imagem_url.includes('/pneus/') || pneuForm.imagem_file) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            askConfirmation(
+                              'Remover Foto do Produto',
+                              'Deseja remover a foto personalizada deste pneu? Será restaurada a imagem padrão da categoria.',
+                              () => removeProductImage(editingPneu?.id || undefined, pneuForm.imagem_url, pneuForm.categoria)
+                            );
+                          }}
+                          className="px-2.5 py-1 border border-red-900/40 bg-red-950/10 hover:bg-red-950/30 text-red-400 text-[9px] font-black uppercase tracking-wider cursor-pointer transition-all rounded-none flex items-center gap-1"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          Remover Foto
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
