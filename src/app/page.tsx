@@ -50,7 +50,7 @@ function jsonLd() {
     '@id': `${SITE.url}/#loja`,
     name: SITE.name,
     url: SITE.url,
-    logo: `${SITE.url}/lp/logo.webp`,
+    logo: `${SITE.url}/lp/logo-branco.webp`,
     image: `${SITE.url}/lp/og.jpg`,
     description:
       'Pneus novos para caminhão aro 17,5 e 22,5, liso e borrachudo, com preço à vista, pronta entrega e envio para todo o Brasil.',
@@ -174,7 +174,7 @@ export default function Home() {
           <div aria-hidden className="absolute inset-x-0 bottom-0 -z-10 h-32 bg-gradient-to-t from-[var(--fundo)] to-transparent" />
 
           <div className="mx-auto w-full max-w-6xl px-5 py-12 sm:px-8 md:py-20">
-            <Image src="/lp/logo.webp" alt="iAlves Pneus" width={560} height={239} priority className="h-14 w-auto sm:h-[72px]" />
+            <Image src="/lp/logo-branco.webp" alt="iAlves Pneus" width={647} height={309} priority className="h-16 w-auto sm:h-20" />
             <h1 className="fonte-destaque mt-8 max-w-[40rem] text-[2.15rem] font-extrabold leading-[1.08] sm:text-5xl lg:text-[3.5rem]">
               Pneu de caminhão novo, com <span className="text-[var(--vermelho)]">preço à vista</span> e entrega rápida.
             </h1>
@@ -426,7 +426,7 @@ export default function Home() {
       <footer className="bg-black pb-28 pt-12 text-zinc-400 sm:pb-10">
         <div className="mx-auto flex max-w-6xl flex-col gap-8 px-5 sm:px-8 md:flex-row md:items-start md:justify-between">
           <div>
-            <Image src="/lp/logo.webp" alt="iAlves Pneus" width={560} height={239} className="h-11 w-auto" />
+            <Image src="/lp/logo-branco.webp" alt="iAlves Pneus" width={647} height={309} className="h-12 w-auto" />
             <p className="mt-3 max-w-xs text-sm leading-relaxed">
               Pneus novos para caminhão aro 17,5 e 22,5. {SITE.city}/{SITE.region}, com envio para todo o Brasil.
             </p>
