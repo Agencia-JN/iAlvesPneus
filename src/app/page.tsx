@@ -1,16 +1,16 @@
 import Image from 'next/image'
-import { AGENCY, MARCAS, MEDIDAS, SITE, whatsappLink } from '@/config/site'
+import Link from 'next/link'
+import { MARCAS, MEDIDAS, SITE, whatsappLink } from '@/config/site'
 import { Cotador } from '@/components/lp/Cotador'
 import { Revelar } from '@/components/lp/Revelar'
-import { AvisoCookies } from '@/components/lp/AvisoCookies'
+import { Rodape } from '@/components/lp/Rodape'
+import { BotaoZap } from '@/components/lp/BotaoZap'
 import {
   BandaBorrachuda,
   BandaLisa,
   IconeCheck,
-  IconeFacebook,
   IconeInstagram,
   IconeSeta,
-  IconeZap,
 } from '@/components/lp/icones'
 
 // ─── Landing page da iAlves Pneus ──────────────────────────────────────────
@@ -85,19 +85,6 @@ function jsonLd() {
   return JSON.stringify([negocio, perguntas, site]).replace(/</g, '\\u003c')
 }
 
-function BotaoZap({ children, mensagem, className = '' }: { children: React.ReactNode; mensagem?: string; className?: string }) {
-  return (
-    <a
-      href={whatsappLink(mensagem)}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={`botao-zap inline-flex min-h-14 items-center justify-center gap-3 rounded-xl px-6 py-3 text-left font-bold leading-tight text-white ${className}`}
-    >
-      <IconeZap className="h-7 w-7 shrink-0" />
-      <span>{children}</span>
-    </a>
-  )
-}
 
 function Sobretitulo({ children }: { children: React.ReactNode }) {
   return <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--vermelho)]">{children}</p>
@@ -151,9 +138,9 @@ function IconeLocal({ className }: { className?: string }) {
 }
 
 const DIFERENCIAIS = [
-  { Icone: IconeAperto, titulo: 'Parceria direta', sub: 'Sem intermediário', texto: 'Você fala com quem resolve. Sem atravessador, sem enrolação e sem processo complicado.' },
-  { Icone: IconeCaminhao, titulo: 'Entrega rápida', sub: 'Pronta entrega', texto: 'Pneu em estoque para Guarulhos e Grande São Paulo, e envio para todo o Brasil.' },
-  { Icone: IconeEtiqueta, titulo: 'Preço à vista', sub: 'Direto do estoque', texto: 'Preço pensado para quem roda: cliente final, autônomo e frota.' },
+  { Icone: IconeAperto, titulo: 'Fala direto com a loja', sub: 'Atendimento de gente', texto: 'Quem responde no WhatsApp entende de pneu e indica o certo para o seu eixo.' },
+  { Icone: IconeCaminhao, titulo: 'Pronta entrega', sub: 'Guarulhos e todo o Brasil', texto: 'Pneu em estoque para sair hoje na Grande SP. Para outros estados, o frete vem junto da cotação.' },
+  { Icone: IconeEtiqueta, titulo: 'Preço à vista', sub: 'Autônomo e frota', texto: 'Preço de pagamento à vista, para quem compra um pneu ou o jogo inteiro da frota.' },
   { Icone: IconeCoracao, titulo: 'Compra do bem', sub: 'Projeto Semear', texto: 'Parte de cada venda ajuda o Projeto Semear. Seu pneu novo também faz diferença lá.' },
 ]
 
@@ -176,8 +163,8 @@ export default function Home() {
         {/* ── Abertura ────────────────────────────────────────────────── */}
         <section className="relative isolate flex min-h-[88svh] items-center">
           <picture className="absolute inset-0 -z-10">
-            <source media="(max-width: 767px)" srcSet="/lp/galpao-mobile.webp" />
-            <img src="/lp/galpao.webp" alt="" fetchPriority="high" className="h-full w-full object-cover object-[70%_center]" />
+            <source media="(max-width: 767px)" srcSet="/lp/caminhao-entardecer-mobile.webp" />
+            <img src="/lp/caminhao-entardecer.webp" alt="" fetchPriority="high" className="h-full w-full object-cover object-[65%_center]" />
           </picture>
           <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-r from-black/95 via-black/70 to-black/5 max-md:bg-black/65" />
           <div aria-hidden className="absolute inset-x-0 bottom-0 -z-10 h-32 bg-gradient-to-t from-[var(--fundo)] to-transparent" />
@@ -231,13 +218,13 @@ export default function Home() {
           <div className="mx-auto max-w-6xl px-5 sm:px-8">
             <Revelar className="mx-auto max-w-2xl text-center">
               <h2 className="fonte-destaque text-[2rem] font-extrabold leading-[1.1] sm:text-5xl">
-                Por que escolher
+                Pneu novo, sem dor
                 <br />
-                <span className="text-[var(--vermelho)]">a iAlves Pneus?</span>
+                <span className="text-[var(--vermelho)]">de cabeça.</span>
               </h2>
               <p className="mx-auto mt-5 max-w-xl text-[17px] leading-relaxed text-zinc-300">
-                A iAlves trabalha para quem vive na estrada, onde quer que você esteja. Atendimento honesto, pneu de
-                qualidade e a segurança que o seu caminhão precisa.
+                Caminhão parado é prejuízo. Por isso a iAlves responde rápido, vende pneu novo a preço justo e manda até
+                onde você estiver.
               </p>
             </Revelar>
             <div className="carrossel -mx-5 mt-12 flex gap-4 overflow-x-auto px-5 pb-4 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4">
@@ -268,12 +255,12 @@ export default function Home() {
           <div className="relative mx-auto max-w-6xl px-5 sm:px-8">
             <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-16">
               <Revelar>
-                <Sobretitulo>Especialidade</Sobretitulo>
+                <Sobretitulo>Medidas</Sobretitulo>
                 <h2 className="fonte-destaque mt-3 text-[2rem] font-extrabold leading-[1.1] sm:text-[2.6rem]">
-                  Trabalhamos com as principais medidas aro 17,5 e 22,5
+                  Aro 17,5 e 22,5: do VUC à carreta
                 </h2>
                 <p className="mt-4 text-[17px] leading-relaxed text-zinc-300">
-                  Pneus de alta quilometragem, com excelente custo-benefício. Toque na medida e a cotação já sai com ela.
+                  Escolha a medida do seu caminhão para ver os detalhes, ou toque em &ldquo;Cotar&rdquo; e a mensagem já sai com ela.
                 </p>
                 <p className="mt-5 text-sm text-zinc-500">
                   Marcas como {MARCAS.slice(0, 8).join(', ')} e outras, conforme o estoque.
@@ -282,20 +269,20 @@ export default function Home() {
               <Revelar atraso={120}>
                 <ul className="divide-y divide-white/10 overflow-hidden rounded-2xl border border-white/10 bg-black/50">
                   {MEDIDAS.map((m) => (
-                    <li key={m.medida}>
+                    <li key={m.medida} className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-[var(--vermelho)]/10">
+                      <Link href={`/${m.slug}`} className="group min-w-0 flex-1">
+                        <span className="fonte-destaque block text-xl font-bold text-white group-hover:underline group-hover:decoration-[var(--vermelho)] group-hover:underline-offset-4">
+                          Pneu {m.medida}
+                        </span>
+                        <span className="block text-sm text-zinc-400">{m.uso}</span>
+                      </Link>
                       <a
                         href={whatsappLink(`Olá! Vim pelo site e quero cotar o pneu ${m.medida}.`)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-[var(--vermelho)]/10"
+                        className="group flex shrink-0 items-center gap-1.5 text-sm font-semibold text-[var(--zap)]"
                       >
-                        <span className="min-w-0 flex-1">
-                          <span className="fonte-destaque block text-xl font-bold text-white">{m.medida}</span>
-                          <span className="block text-sm text-zinc-400">{m.uso}</span>
-                        </span>
-                        <span className="flex shrink-0 items-center gap-1.5 text-sm font-semibold text-[var(--zap)]">
-                          Cotar <IconeSeta className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                        </span>
+                        Cotar <IconeSeta className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                       </a>
                     </li>
                   ))}
@@ -427,73 +414,20 @@ export default function Home() {
           <Image src="/lp/caminhao-estrada.webp" alt="Caminhão na estrada" fill sizes="100vw" className="-z-10 object-cover object-[70%_center]" />
           <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-br from-[#b3080e]/85 via-[#5a0306]/80 to-black/85" />
           <div className="mx-auto max-w-3xl px-5 text-center sm:px-8">
-            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-white/80">Atendimento imediato</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-white/80">Bora rodar</p>
             <h2 className="fonte-destaque mt-3 text-3xl font-extrabold leading-tight sm:text-5xl">
-              Mande a medida e receba sua cotação em minutos
+              A próxima viagem começa com o pneu certo
             </h2>
             <p className="mx-auto mt-5 max-w-lg text-[17px] text-white/90">
-              Pelo WhatsApp, de onde você estiver: na estrada, na garagem ou no pátio.
+              Manda a medida pelo WhatsApp, de onde você estiver: na estrada, na garagem ou no pátio.
             </p>
-            <p className="mt-6 text-sm font-semibold tracking-wide text-white">SEM CADASTRO • SEM BUROCRACIA • SEM PERDER TEMPO</p>
-            <BotaoZap className="mt-7 w-full sm:w-auto">Quero minha cotação com a iAlves agora</BotaoZap>
+            <p className="mt-6 text-sm font-semibold tracking-wide text-white">Resposta rápida · Pneu novo · Envio para todo o Brasil</p>
+            <BotaoZap className="mt-7 w-full sm:w-auto">Pedir minha cotação agora</BotaoZap>
           </div>
         </section>
       </main>
 
-      {/* ── Rodapé ──────────────────────────────────────────────────────── */}
-      <footer className="bg-black pb-28 pt-12 text-zinc-400 sm:pb-10">
-        <div className="mx-auto flex max-w-6xl flex-col gap-8 px-5 sm:px-8 md:flex-row md:items-start md:justify-between">
-          <div>
-            <Image src="/lp/logo-branco.webp" alt="iAlves Pneus" width={647} height={309} className="h-12 w-auto" />
-            <p className="mt-3 max-w-xs text-sm leading-relaxed">
-              Pneus novos para caminhão aro 17,5 e 22,5. {SITE.city}/{SITE.region}, com envio para todo o Brasil.
-            </p>
-          </div>
-          <div className="flex flex-col gap-3 text-sm">
-            <a href={whatsappLink()} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 font-semibold text-white hover:text-[var(--zap)]">
-              <IconeZap className="h-5 w-5 text-[var(--zap)]" />
-              {SITE.whatsappDisplay}
-            </a>
-            <a href={SITE.instagram} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 font-semibold text-white hover:text-[var(--vermelho)]">
-              <IconeInstagram className="h-5 w-5" /> {SITE.instagramHandle}
-            </a>
-            <a href={SITE.facebook} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 font-semibold text-white hover:text-[var(--vermelho)]">
-              <IconeFacebook className="h-5 w-5" /> Facebook
-            </a>
-          </div>
-        </div>
-        <div className="mx-auto mt-10 flex max-w-6xl flex-col gap-3 border-t border-white/5 px-5 pt-6 text-xs sm:flex-row sm:items-center sm:justify-between sm:px-8">
-          <p>
-            © {new Date().getFullYear()} iAlves Pneus · Valores e disponibilidade sujeitos a alteração ·{' '}
-            <a href="/privacidade" className="underline underline-offset-2 hover:text-white">
-              Privacidade
-            </a>
-          </p>
-          <a
-            href={AGENCY.whatsappUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex shrink-0 items-center gap-2 opacity-50 transition-opacity hover:opacity-100"
-            title="Quer um site assim? Fale com a Agência JN"
-          >
-            <span>Site por</span>
-            <Image src="/lp/agencia-jn.png" alt={AGENCY.name} width={900} height={202} className="h-4 w-auto" />
-          </a>
-        </div>
-      </footer>
-
-      {/* ── Balão do WhatsApp ───────────────────────────────────────────── */}
-      <a
-        href={whatsappLink()}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Conversar no WhatsApp"
-        className="balao-zap fixed bottom-5 right-5 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--zap)] text-white shadow-2xl"
-      >
-        <IconeZap className="h-9 w-9" />
-      </a>
-
-      <AvisoCookies />
+      <Rodape />
     </>
   )
 }

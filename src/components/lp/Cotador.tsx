@@ -29,8 +29,8 @@ function Opcao({ ativo, onClick, children, compacto }: { ativo: boolean; onClick
   )
 }
 
-export function Cotador() {
-  const [medida, setMedida] = useState<string>(MEDIDAS[0].medida)
+export function Cotador({ medidaInicial }: { medidaInicial?: string } = {}) {
+  const [medida, setMedida] = useState<string>(medidaInicial ?? MEDIDAS[0].medida)
   const [outra, setOutra] = useState('')
   const [tipo, setTipo] = useState<(typeof TIPOS)[number]>('Liso')
   const [qtd, setQtd] = useState(2)
