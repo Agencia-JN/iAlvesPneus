@@ -9,8 +9,9 @@ export const SITE = {
   instagram: 'https://www.instagram.com/ialvespneus',
   instagramHandle: '@ialvespneus',
   facebook: 'https://www.facebook.com/share/18eHAeMAMZ/',
-  city: 'São Paulo',
+  city: 'Guarulhos',
   region: 'SP',
+  instagramSeguidores: '21 mil',
 }
 
 export const AGENCY = {

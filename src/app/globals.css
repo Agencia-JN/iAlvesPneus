@@ -137,6 +137,8 @@ html { scroll-behavior: smooth; scroll-padding-top: 84px; }
   background-size: 44px 44px;
 }
 
+.fonte-destaque { font-family: var(--font-destaque), 'Montserrat', sans-serif; }
+
 details > summary { list-style: none; }
 details > summary::-webkit-details-marker { display: none; }
 details[open] .giro { transform: rotate(45deg); }

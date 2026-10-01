@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Barlow_Condensed, Inter } from 'next/font/google'
+import { Barlow_Condensed, Inter, Montserrat } from 'next/font/google'
 import { SITE } from '@/config/site'
 import './globals.css'
 
@@ -11,15 +11,22 @@ const titulos = Barlow_Condensed({
   display: 'swap',
 })
 
+const destaque = Montserrat({
+  variable: '--font-destaque',
+  subsets: ['latin'],
+  weight: ['600', '700', '800'],
+  display: 'swap',
+})
+
 const texto = Inter({
   variable: '--font-texto',
   subsets: ['latin'],
   display: 'swap',
 })
 
-const TITULO = 'Pneus para Caminhão em São Paulo'
+const TITULO = 'Pneus para Caminhão em Guarulhos'
 const DESCRICAO =
-  'Pneus novos para caminhão e ônibus: 295/80 R22.5, 275/80 R22.5, 235/75 R17.5 e 215/75 R17.5, liso e borrachudo. Preço à vista, pronta entrega e cotação em 2 minutos pelo WhatsApp.'
+  'Pneus novos para caminhão aro 17,5 e 22,5: 295/80, 275/80, 235/75 e 215/75. Liso e borrachudo, preço à vista e entrega para Guarulhos, Grande SP e todo o Brasil. Cotação em 2 minutos no WhatsApp.'
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
@@ -37,7 +44,11 @@ export const metadata: Metadata = {
     'pneu liso',
     'pneu de carga',
     'pneu de ônibus',
+    'pneu caminhão Guarulhos',
+    'pneu de caminhão Guarulhos',
     'pneu caminhão São Paulo',
+    'pneu aro 22.5',
+    'pneu aro 17.5',
     'iAlves Pneus',
   ],
   alternates: { canonical: '/' },
@@ -76,7 +87,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="pt-BR" className={`${titulos.variable} ${texto.variable} antialiased`}>
+    <html lang="pt-BR" className={`${titulos.variable} ${destaque.variable} ${texto.variable} antialiased`}>
       <body>{children}</body>
     </html>
   )
