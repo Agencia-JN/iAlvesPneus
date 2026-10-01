@@ -411,7 +411,7 @@ export default function Home() {
 
         {/* ── Atendimento imediato ────────────────────────────────────── */}
         <section className="relative isolate overflow-hidden py-20 sm:py-28">
-          <Image src="/lp/caminhao-estrada.webp" alt="Caminhão na estrada" fill sizes="100vw" className="-z-10 object-cover object-[70%_center]" />
+          <Image src="/lp/caminhao-branco.webp" alt="Caminhão na estrada" fill sizes="100vw" className="-z-10 object-cover object-[45%_center]" />
           <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-br from-[#b3080e]/85 via-[#5a0306]/80 to-black/85" />
           <div className="mx-auto max-w-3xl px-5 text-center sm:px-8">
             <p className="text-sm font-semibold uppercase tracking-[0.14em] text-white/80">Bora rodar</p>
