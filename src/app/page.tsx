@@ -662,7 +662,7 @@ export default function Home() {
                 </p>
               )}
               <p className="text-[9px] tracking-wide uppercase text-gray-600 font-semibold">
-                © {new Date().getFullYear()} {configs.footer_config.texto_rodape.trim() || 'Todos os direitos reservados.'}{configs.footer_config.cnpj.trim() && ` | CNPJ: ${configs.footer_config.cnpj.trim()}`}
+                <span suppressHydrationWarning>© {new Date().getFullYear()}</span> {configs.footer_config.texto_rodape.trim() || 'Todos os direitos reservados.'}{configs.footer_config.cnpj.trim() && ` | CNPJ: ${configs.footer_config.cnpj.trim()}`}
               </p>
             </div>
             <div className="flex items-center gap-2 bg-[#0A0A0B] border border-gray-800/60 px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-[#22C55E] shrink-0">

@@ -239,6 +239,11 @@ export default function CentralDiretoria() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const getStoragePathFromUrl = (url: string, bucketName: string): string | null => {
     if (!url) return null;
@@ -1215,7 +1220,7 @@ export default function CentralDiretoria() {
   };
 
   const downloadTemplateCsv = () => {
-    const headers = 'nome,marca,categoria,largura,perfil,aro,preco_a_vista,quantidade_estoque';
+    const headers = 'nome;marca;categoria;largura;perfil;aro;preco_a_vista;quantidade_estoque';
     const csvContent = `${headers}\n`;
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -1234,9 +1239,9 @@ export default function CentralDiretoria() {
       setShowDownloadDropdown(false);
       return;
     }
-    const headers = 'nome,marca,categoria,largura,perfil,aro,preco_a_vista,quantidade_estoque';
+    const headers = 'nome;marca;categoria;largura;perfil;aro;preco_a_vista;quantidade_estoque';
     const rows = pneus.map(p => 
-      `"${p.nome}","${p.marca}","${p.categoria}",${p.largura_mm || 295},${p.perfil_proporcao || 80},${p.aro_polegadas || '22.5'},${p.preco_vista.toFixed(2)},${p.quantidade_estoque ?? 0}`
+      `"${p.nome}";"${p.marca}";"${p.categoria}";${p.largura_mm || 295};${p.perfil_proporcao || 80};"${p.aro_polegadas || '22.5'}";${p.preco_vista.toFixed(2)};${p.quantidade_estoque ?? 0}`
     ).join('\n');
     const csvContent = `${headers}\n${rows}`;
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -1766,12 +1771,21 @@ export default function CentralDiretoria() {
 
   // Tela de carregamento de autenticação — exibida enquanto verifica a sessão
   if (authLoading) {
-    const cachedLogo = typeof window !== 'undefined' ? localStorage.getItem('ialves_cached_logo') : null;
+    const cachedLogo = mounted && typeof window !== 'undefined' ? localStorage.getItem('ialves_cached_logo') : null;
     return (
       <div className="min-h-screen bg-[#0B0B0C] flex items-center justify-center">
         <div className="flex flex-col items-center gap-6">
-          {cachedLogo ? (
-            <img src={cachedLogo} alt="iAlves Pneus" className="h-16 w-auto object-contain" />
+          {mounted && cachedLogo ? (
+            <div className="relative w-32 h-16">
+              <Image 
+                src={cachedLogo} 
+                alt="iAlves Pneus" 
+                fill 
+                priority 
+                unoptimized 
+                className="object-contain" 
+              />
+            </div>
           ) : (
             <div className="h-16 w-16 bg-gray-800 animate-pulse rounded-full" />
           )}
@@ -1831,7 +1845,7 @@ export default function CentralDiretoria() {
     <div className="min-h-screen bg-[#0B0B0C] flex flex-col selection:bg-[#E11D48] selection:text-white">
       
       {/* Topbar do Administrador */}
-      <header className="border-b border-gray-900 bg-black/60 backdrop-blur-md px-6 py-4 flex items-center justify-between z-40 sticky top-0">
+      <header className="border-b border-gray-900 bg-black/60 backdrop-blur-md px-4 sm:px-6 py-4 flex items-center justify-between z-40 sticky top-0">
         <div className="flex items-center gap-3">
           {/* Botão Hambúrguer */}
           <button
@@ -1892,7 +1906,7 @@ export default function CentralDiretoria() {
           fixed inset-y-0 left-0 z-30 bg-[#0B0B0C] border-r border-gray-900 p-6 space-y-4 transition-all duration-300
           lg:static lg:block shrink-0
           ${sidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0'}
-          ${sidebarCollapsed ? 'lg:w-20 lg:p-3' : 'lg:w-64'}
+          ${sidebarCollapsed ? 'lg:w-16 lg:p-2.5' : 'lg:w-64'}
         `}>
           <p className={`text-[10px] text-gray-600 font-black uppercase tracking-widest mb-4 px-3 ${sidebarCollapsed ? 'lg:hidden' : ''}`}>Navegação Geral</p>
           
@@ -1905,7 +1919,7 @@ export default function CentralDiretoria() {
               activeTab === 'pneus' ? 'bg-[#E11D48] text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <span className="text-base shrink-0">📊</span>
+            <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
             <span className={`${sidebarCollapsed ? 'lg:hidden' : 'inline'}`}>Gerenciar Estoque</span>
           </button>
 
@@ -1918,7 +1932,7 @@ export default function CentralDiretoria() {
               activeTab === 'banners' ? 'bg-[#E11D48] text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <span className="text-base shrink-0">🖼</span>
+            <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
             <span className={`${sidebarCollapsed ? 'lg:hidden' : 'inline'}`}>Banners Rotativos</span>
           </button>
 
@@ -1931,7 +1945,7 @@ export default function CentralDiretoria() {
               activeTab === 'configuracoes' ? 'bg-[#E11D48] text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <span className="text-base shrink-0">⚙</span>
+            <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
             <span className={`${sidebarCollapsed ? 'lg:hidden' : 'inline'}`}>Configurações</span>
           </button>
 
@@ -1944,7 +1958,7 @@ export default function CentralDiretoria() {
               activeTab === 'afiliados' ? 'bg-[#E11D48] text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <span className="text-base shrink-0">🤝</span>
+            <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
             <span className={`${sidebarCollapsed ? 'lg:hidden' : 'inline'}`}>Afiliados</span>
           </button>
 
@@ -1957,7 +1971,7 @@ export default function CentralDiretoria() {
               activeTab === 'auditoria' ? 'bg-[#E11D48] text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <span className="text-base shrink-0">🛡</span>
+            <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
             <span className={`${sidebarCollapsed ? 'lg:hidden' : 'inline'}`}>Auditoria</span>
           </button>
 
@@ -1970,7 +1984,7 @@ export default function CentralDiretoria() {
               activeTab === 'acessos' ? 'bg-[#E11D48] text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <span className="text-base shrink-0">🔐</span>
+            <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
             <span className={`${sidebarCollapsed ? 'lg:hidden' : 'inline'}`}>Gestão Acesso</span>
           </button>
 
@@ -2118,30 +2132,34 @@ export default function CentralDiretoria() {
                 </button>
               </div>
 
-              <div className="glass-panel rounded-none overflow-hidden overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[1000px]">
-                  <thead>
-                    <tr className="bg-white/5 text-[10px] text-gray-400 font-black uppercase tracking-widest border-b border-gray-900">
-                      <th className="p-4 w-12 text-center">#</th>
-                      <th className="p-4">Foto</th>
-                      <th className="p-4">Marca / Nome</th>
-                      <th className="p-4">Categoria</th>
-                      <th className="p-4">Especificações</th>
-                      <th className="p-4">Preço à Vista</th>
-                      <th className="p-4 text-center">Estoque</th>
-                      <th className="p-4 text-center">Status</th>
-                      <th className="p-4 text-center">Ações</th>
+              <div className="glass-panel rounded-none overflow-hidden">
+                <table className="w-full text-left border-collapse block md:table">
+                  <thead className="hidden md:table-header-group">
+                    <tr className="bg-white/5 text-[10px] text-gray-400 font-black uppercase tracking-widest border-b border-gray-900 md:table-row">
+                      <th className="p-4 w-12 text-center md:table-cell">#</th>
+                      <th className="p-4 md:table-cell">Foto</th>
+                      <th className="p-4 md:table-cell">Marca / Nome</th>
+                      <th className="p-4 md:table-cell">Categoria</th>
+                      <th className="p-4 md:table-cell">Especificações</th>
+                      <th className="p-4 md:table-cell">Preço à Vista</th>
+                      <th className="p-4 text-center md:table-cell">Estoque</th>
+                      <th className="p-4 text-center md:table-cell">Status</th>
+                      <th className="p-4 text-center md:table-cell">Ações</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-900 text-xs">
+                  <tbody className="divide-y divide-gray-900 text-xs block md:table-row-group">
                     {pneus.map((pneu, index) => {
                       const isProductActive = pneu.status_produto === 'ativo' && (pneu.quantidade_estoque ?? 0) > 0;
                       return (
-                        <tr key={pneu.id} className="hover:bg-white/2 transition-colors">
-                          <td className="p-4 text-center text-gray-500 font-bold">{index + 1}</td>
-                          <td className="p-4">
+                        <tr key={pneu.id} className="hover:bg-white/2 transition-colors block border-b border-gray-800 p-4 space-y-2 md:space-y-0 md:table-row md:p-0 md:border-b-0">
+                          <td className="flex justify-between items-center py-1.5 md:table-cell md:p-4 text-right md:text-center text-gray-500 font-bold border-b border-gray-900/40 md:border-b-0">
+                            <span className="md:hidden text-gray-500 font-bold uppercase text-[9px] tracking-wider">#</span>
+                            <span>{index + 1}</span>
+                          </td>
+                          <td className="flex justify-between items-center py-1.5 md:table-cell md:p-4 text-right md:text-left border-b border-gray-900/40 md:border-b-0">
+                            <span className="md:hidden text-gray-500 font-bold uppercase text-[9px] tracking-wider">Foto</span>
                             <div className="group relative">
-                              <div className="relative w-12 h-12 bg-black border border-gray-800 p-1 flex items-center justify-center">
+                              <div className="relative w-12 h-12 bg-black border border-gray-800 p-1 flex items-center justify-center ml-auto md:ml-0">
                                 <Image src={pneu.imagem_url} alt={pneu.nome} width={40} height={40} unoptimized className="object-contain max-h-full" />
                               </div>
                               {pneu.imagem_url && pneu.imagem_url.includes('/pneus/') && (
@@ -2162,20 +2180,34 @@ export default function CentralDiretoria() {
                               )}
                             </div>
                           </td>
-                          <td className="p-4 font-extrabold text-white">
-                            <span className="block text-[9px] text-gray-500 font-bold uppercase">{pneu.marca}</span>
-                            {pneu.nome}
+                          <td className="flex justify-between items-center py-1.5 md:table-cell md:p-4 text-right md:text-left border-b border-gray-900/40 md:border-b-0 font-extrabold text-white">
+                            <span className="md:hidden text-gray-500 font-bold uppercase text-[9px] tracking-wider">Marca / Nome</span>
+                            <div className="text-right md:text-left">
+                              <span className="block text-[9px] text-gray-500 font-bold uppercase">{pneu.marca}</span>
+                              {pneu.nome}
+                            </div>
                           </td>
-                          <td className="p-4 font-semibold text-gray-300">{pneu.categoria}</td>
-                          <td className="p-4 font-black text-white">
-                            <span className="block text-[11px] text-[#E11D48] font-black">{pneu.medida}</span>
-                            <span className="block text-[9px] text-gray-500 font-bold uppercase mt-0.5">Sulco: {pneu.sulco_mm} mm</span>
+                          <td className="flex justify-between items-center py-1.5 md:table-cell md:p-4 text-right md:text-left border-b border-gray-900/40 md:border-b-0 font-semibold text-gray-300">
+                            <span className="md:hidden text-gray-500 font-bold uppercase text-[9px] tracking-wider">Categoria</span>
+                            <span>{pneu.categoria}</span>
                           </td>
-                          <td className="p-4 font-black text-white">{formatCurrency(pneu.preco_vista)}</td>
-                          <td className="p-4 text-center font-bold text-gray-200">
-                            {pneu.quantidade_estoque !== undefined ? pneu.quantidade_estoque : 10}
+                          <td className="flex justify-between items-center py-1.5 md:table-cell md:p-4 text-right md:text-left border-b border-gray-900/40 md:border-b-0 font-black text-white">
+                            <span className="md:hidden text-gray-500 font-bold uppercase text-[9px] tracking-wider">Especificações</span>
+                            <div className="text-right md:text-left">
+                              <span className="block text-[11px] text-[#E11D48] font-black">{pneu.medida}</span>
+                              <span className="block text-[9px] text-gray-500 font-bold uppercase mt-0.5">Sulco: {pneu.sulco_mm} mm</span>
+                            </div>
                           </td>
-                          <td className="p-4 text-center">
+                          <td className="flex justify-between items-center py-1.5 md:table-cell md:p-4 text-right md:text-left border-b border-gray-900/40 md:border-b-0 font-black text-white">
+                            <span className="md:hidden text-gray-500 font-bold uppercase text-[9px] tracking-wider">Preço à Vista</span>
+                            <span>{formatCurrency(pneu.preco_vista)}</span>
+                          </td>
+                          <td className="flex justify-between items-center py-1.5 md:table-cell md:p-4 text-right md:text-center border-b border-gray-900/40 md:border-b-0 font-bold text-gray-200">
+                            <span className="md:hidden text-gray-500 font-bold uppercase text-[9px] tracking-wider">Estoque</span>
+                            <span>{pneu.quantidade_estoque !== undefined ? pneu.quantidade_estoque : 10}</span>
+                          </td>
+                          <td className="flex justify-between items-center py-1.5 md:table-cell md:p-4 text-right md:text-center border-b border-gray-900/40 md:border-b-0">
+                            <span className="md:hidden text-gray-500 font-bold uppercase text-[9px] tracking-wider">Status</span>
                             <span className={`inline-block text-[9px] font-black uppercase px-2 py-0.5 border ${
                               isProductActive 
                                 ? 'bg-green-950/20 border-green-900/30 text-green-500' 
@@ -2184,8 +2216,9 @@ export default function CentralDiretoria() {
                               {isProductActive ? 'Ativo' : (pneu.quantidade_estoque ?? 0) === 0 ? 'Esgotado' : 'Inativo'}
                             </span>
                           </td>
-                          <td className="p-4">
-                            <div className="flex items-center justify-center gap-2">
+                          <td className="flex flex-col sm:flex-row justify-between sm:items-center py-2 gap-2 md:table-cell md:p-4 text-right md:text-left">
+                            <span className="md:hidden text-gray-500 font-bold uppercase text-[9px] tracking-wider">Ações</span>
+                            <div className="flex flex-wrap items-center justify-end md:justify-center gap-2">
                               <button
                                 onClick={() => openEditModal(pneu)}
                                 className="px-3 py-1.5 border border-gray-800 hover:border-gray-600 bg-white/5 text-xs font-bold uppercase tracking-wider cursor-pointer"
@@ -2204,7 +2237,7 @@ export default function CentralDiretoria() {
                               </button>
                               <button
                                 onClick={() => deletePneu(pneu.id)}
-                                className="px-2 py-1.5 text-gray-600 hover:text-red-500 text-[10px] font-bold uppercase tracking-wider cursor-pointer border border-transparent hover:border-red-900/20 rounded-none bg-transparent"
+                                className="px-2 py-1.5 text-gray-600 hover:text-red-500 text-[10px] font-bold uppercase tracking-wider cursor-pointer border border-transparent hover:border-red-950/20 rounded-none bg-transparent"
                                 title="Excluir permanentemente do banco e storage"
                               >
                                 Excluir Físico
@@ -2215,8 +2248,8 @@ export default function CentralDiretoria() {
                       );
                     })}
                     {pneus.length === 0 && (
-                      <tr>
-                        <td colSpan={12} className="p-8 text-center text-gray-500 font-bold uppercase tracking-wide">
+                      <tr className="block md:table-row">
+                        <td colSpan={12} className="p-8 text-center text-gray-500 font-bold uppercase tracking-wide block md:table-cell">
                           Estoque físico vazio no momento.
                         </td>
                       </tr>
