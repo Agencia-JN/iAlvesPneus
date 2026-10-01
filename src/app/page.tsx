@@ -355,37 +355,8 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ── Indicação premiada ──────────────────────────────────────── */}
-        <section id="indicacao" className="py-20 sm:py-24">
-          <div className="mx-auto max-w-6xl px-5 sm:px-8">
-            <div className="grid items-center gap-8 rounded-2xl border border-[var(--vermelho)]/40 bg-gradient-to-br from-[#240407] to-black p-7 sm:p-10 lg:grid-cols-[1.3fr_1fr]">
-              <div>
-                <Sobretitulo>Indicação premiada</Sobretitulo>
-                <h2 className="fonte-destaque mt-3 text-3xl font-extrabold leading-tight sm:text-[2.4rem]">
-                  Indicou, comprou, ganhou: <span className="text-[var(--vermelho)]">R$ 20 por pneu</span>
-                </h2>
-                <p className="mt-4 max-w-lg text-[17px] leading-relaxed text-zinc-300">
-                  Conhece alguém precisando de pneu? Indique a iAlves. Quando a pessoa comprar, você ganha R$ 20 por pneu
-                  vendido.
-                </p>
-                <BotaoZap mensagem="Olá! Vim pelo site e quero indicar uma pessoa para a Indicação Premiada." className="mt-7 w-full sm:w-auto">
-                  Quero indicar alguém
-                </BotaoZap>
-                <p className="mt-4 text-xs text-zinc-500">Não acumula com descontos de queima de estoque.</p>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-black/50 p-6 text-center">
-                <p className="text-sm text-zinc-400">Seu indicado comprou 10 pneus?</p>
-                <p className="fonte-destaque mt-2 text-5xl font-extrabold">
-                  R$ <span className="text-[var(--vermelho)]">200</span>
-                </p>
-                <p className="mt-1 text-sm text-zinc-300">de prêmio para você</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
         {/* ── Dúvidas ─────────────────────────────────────────────────── */}
-        <section id="duvidas" className="pb-20 sm:pb-24">
+        <section id="duvidas" className="py-20 sm:py-24">
           <div className="mx-auto max-w-3xl px-5 sm:px-8">
             <h2 className="fonte-destaque text-3xl font-extrabold leading-tight sm:text-[2.4rem]">Perguntas frequentes</h2>
             <div className="mt-8 divide-y divide-white/10 border-y border-white/10">
