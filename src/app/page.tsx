@@ -157,6 +157,14 @@ const DIFERENCIAIS = [
   { Icone: IconeCoracao, titulo: 'Compra do bem', sub: 'Projeto Semear', texto: 'Parte de cada venda ajuda o Projeto Semear. Seu pneu novo também faz diferença lá.' },
 ]
 
+/** Fotos reais do Instagram da iAlves (@ialvespneus) */
+const ESTOQUE = [
+  { src: '/lp/estoque-xbri-robusto.webp', alt: 'Pneus XBRI Robusto P2 borrachudo no estoque da iAlves', legenda: 'XBRI Robusto P2 · borrachudo' },
+  { src: '/lp/estoque-westlake.webp', alt: 'Pneu Westlake CR976A 275/80 R22.5', legenda: 'Westlake CR976A · 275/80 R22.5' },
+  { src: '/lp/estoque-agate-hf688.webp', alt: 'Pneu Agate HF688 295/80 R22.5', legenda: 'Agate HF688 · 295/80 R22.5' },
+  { src: '/lp/estoque-liso-275.webp', alt: 'Pneu liso 275/80 R22.5 no estoque da iAlves', legenda: 'Liso · 275/80 R22.5' },
+]
+
 export default function Home() {
   const fita = [...MEDIDAS.map((m) => m.medida), 'Liso', 'Borrachudo', 'Pronta entrega', 'Preço à vista']
 
@@ -254,57 +262,75 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ── Especialidade: medidas ──────────────────────────────────── */}
+        {/* ── Especialidade: medidas + vitrine do estoque ─────────────── */}
         <section id="medidas" className="relative overflow-hidden bg-gradient-to-br from-[#2a0609] via-[#120405] to-black py-20 sm:py-28">
           <div aria-hidden className="absolute -left-32 top-0 h-96 w-96 rounded-full bg-[var(--vermelho)]/20 blur-3xl" />
-          <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 sm:px-8 lg:grid-cols-2 lg:gap-16">
-            <Revelar>
-              <Sobretitulo>Especialidade</Sobretitulo>
-              <h2 className="fonte-destaque mt-3 text-[2rem] font-extrabold leading-[1.1] sm:text-[2.6rem]">
-                Trabalhamos com as principais medidas aro 17,5 e 22,5
-              </h2>
-              <p className="mt-4 text-[17px] leading-relaxed text-zinc-300">
-                Pneus de alta quilometragem, com excelente custo-benefício. Toque na medida e a cotação já sai com ela.
-              </p>
-              <ul className="mt-8 divide-y divide-white/10 overflow-hidden rounded-2xl border border-white/10 bg-black/50">
-                {MEDIDAS.map((m) => (
-                  <li key={m.medida}>
-                    <a
-                      href={whatsappLink(`Olá! Vim pelo site e quero cotar o pneu ${m.medida}.`)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-[var(--vermelho)]/10"
-                    >
-                      <span className="min-w-0 flex-1">
-                        <span className="fonte-destaque block text-xl font-bold text-white">{m.medida}</span>
-                        <span className="block text-sm text-zinc-400">{m.uso}</span>
-                      </span>
-                      <span className="flex shrink-0 items-center gap-1.5 text-sm font-semibold text-[var(--zap)]">
-                        Cotar <IconeSeta className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                      </span>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-5 text-sm text-zinc-500">
-                Marcas como {MARCAS.slice(0, 8).join(', ')} e outras, conforme o estoque.
-              </p>
-            </Revelar>
-            <Revelar atraso={150} className="relative">
-              <div aria-hidden className="absolute -inset-3 rounded-[2rem] bg-gradient-to-br from-[var(--vermelho)] to-transparent opacity-60 blur-xl" />
-              <div className="relative aspect-[4/5] overflow-hidden rounded-[1.75rem] border border-white/15 sm:aspect-[4/3] lg:aspect-[4/5]">
-                <Image
-                  src="/lp/pneus-empilhados.webp"
-                  alt="Pneus novos de caminhão empilhados no estoque"
-                  fill
-                  sizes="(max-width: 1024px) 100vw, 50vw"
-                  className="object-cover transition-transform duration-[1.2s] hover:scale-105"
-                />
-                <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                <p className="fonte-destaque absolute bottom-5 left-5 right-5 text-lg font-bold leading-snug text-white">
-                  Liso e borrachudo, pronta entrega
-                  <span className="block text-sm font-medium text-zinc-300">direto de {SITE.city} para o Brasil</span>
+          <div className="relative mx-auto max-w-6xl px-5 sm:px-8">
+            <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-16">
+              <Revelar>
+                <Sobretitulo>Especialidade</Sobretitulo>
+                <h2 className="fonte-destaque mt-3 text-[2rem] font-extrabold leading-[1.1] sm:text-[2.6rem]">
+                  Trabalhamos com as principais medidas aro 17,5 e 22,5
+                </h2>
+                <p className="mt-4 text-[17px] leading-relaxed text-zinc-300">
+                  Pneus de alta quilometragem, com excelente custo-benefício. Toque na medida e a cotação já sai com ela.
                 </p>
+                <p className="mt-5 text-sm text-zinc-500">
+                  Marcas como {MARCAS.slice(0, 8).join(', ')} e outras, conforme o estoque.
+                </p>
+              </Revelar>
+              <Revelar atraso={120}>
+                <ul className="divide-y divide-white/10 overflow-hidden rounded-2xl border border-white/10 bg-black/50">
+                  {MEDIDAS.map((m) => (
+                    <li key={m.medida}>
+                      <a
+                        href={whatsappLink(`Olá! Vim pelo site e quero cotar o pneu ${m.medida}.`)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-[var(--vermelho)]/10"
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="fonte-destaque block text-xl font-bold text-white">{m.medida}</span>
+                          <span className="block text-sm text-zinc-400">{m.uso}</span>
+                        </span>
+                        <span className="flex shrink-0 items-center gap-1.5 text-sm font-semibold text-[var(--zap)]">
+                          Cotar <IconeSeta className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                        </span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </Revelar>
+            </div>
+
+            <Revelar className="mt-16">
+              <div className="flex items-baseline justify-between gap-4">
+                <p className="fonte-destaque text-xl font-bold text-white">Direto do nosso estoque</p>
+                <a href={SITE.instagram} target="_blank" rel="noopener noreferrer" className="flex shrink-0 items-center gap-1.5 text-sm font-semibold text-zinc-400 hover:text-white">
+                  <IconeInstagram className="h-4 w-4" /> <span className="hidden sm:inline">Veja mais no</span> {SITE.instagramHandle}
+                </a>
+              </div>
+              <div className="carrossel -mx-5 mt-6 flex gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:grid md:grid-cols-4 md:gap-5 md:overflow-visible md:px-0 md:pb-0">
+                {ESTOQUE.map((foto, i) => (
+                  <a
+                    key={foto.src}
+                    href={SITE.instagram}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`foto-estoque group relative block w-[58%] shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-black sm:w-[38%] md:w-auto ${i % 2 === 1 ? 'md:mt-8' : ''}`}
+                  >
+                    <Image
+                      src={foto.src}
+                      alt={foto.alt}
+                      width={360}
+                      height={640}
+                      sizes="(max-width: 640px) 58vw, (max-width: 768px) 38vw, 280px"
+                      className="aspect-[9/14] h-auto w-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
+                    />
+                    <div aria-hidden className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/90 to-transparent" />
+                    <p className="absolute bottom-3 left-3 right-3 text-sm font-semibold leading-tight text-white">{foto.legenda}</p>
+                  </a>
+                ))}
               </div>
             </Revelar>
           </div>

@@ -165,3 +165,9 @@ details[open] .giro { transform: rotate(45deg); }
 .carrossel { scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 .carrossel::-webkit-scrollbar { display: none; }
 .carrossel > * { scroll-snap-align: start; }
+
+/* Vitrine do estoque: a foto sobe e ganha brilho vermelho ao passar o mouse */
+.foto-estoque { transition: transform .4s cubic-bezier(.2,.7,.2,1), box-shadow .4s ease, border-color .4s ease; }
+@media (hover: hover) {
+  .foto-estoque:hover { transform: translateY(-8px); border-color: rgba(227,20,27,.6); box-shadow: 0 24px 50px -18px rgba(227,20,27,.55); }
+}
