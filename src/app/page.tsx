@@ -1,6 +1,7 @@
 import Image from 'next/image'
 import { AGENCY, MARCAS, MEDIDAS, SITE, whatsappLink } from '@/config/site'
 import { Cotador } from '@/components/lp/Cotador'
+import { Revelar } from '@/components/lp/Revelar'
 import { AvisoCookies } from '@/components/lp/AvisoCookies'
 import {
   BandaBorrachuda,
@@ -185,22 +186,19 @@ export default function Home() {
               Quero minha cotação
               <span className="block text-[13px] font-semibold text-white/85">resposta em menos de 2 minutos</span>
             </BotaoZap>
-            <ul className="mt-9 flex flex-wrap gap-x-7 gap-y-3 text-sm text-zinc-200">
-              <li className="flex items-center gap-2">
-                <IconeInstagram className="h-[18px] w-[18px] text-[var(--vermelho)]" />
-                <span>
-                  <strong className="text-white">+{SITE.instagramSeguidores}</strong> no Instagram
-                </span>
-              </li>
-              <li className="flex items-center gap-2">
-                <IconeCaminhao className="h-[18px] w-[18px] text-[var(--vermelho)]" />
-                Envio para todo o Brasil
-              </li>
-              <li className="flex items-center gap-2">
-                <IconeLocal className="h-[18px] w-[18px] text-[var(--vermelho)]" />
-                {SITE.city} · {SITE.region}
-              </li>
-            </ul>
+            <dl className="mt-10 grid max-w-xl grid-cols-3 divide-x divide-white/15 rounded-xl border border-white/10 bg-black/45 py-4 backdrop-blur-sm">
+              {[
+                [`+${SITE.instagramSeguidores}`, 'seguidores no Instagram'],
+                ['2 min', 'para receber a cotação'],
+                ['Brasil', `envio a partir de ${SITE.city}`],
+              ].map(([valor, rotulo]) => (
+                <div key={rotulo} className="px-3 text-center sm:px-5">
+                  <dt className="sr-only">{rotulo}</dt>
+                  <dd className="fonte-destaque text-xl font-extrabold leading-none text-white sm:text-2xl">{valor}</dd>
+                  <dd className="mt-1.5 text-[11px] leading-tight text-zinc-400 sm:text-xs">{rotulo}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
         </section>
 
@@ -219,60 +217,63 @@ export default function Home() {
         </div>
 
         {/* ── Por que escolher ────────────────────────────────────────── */}
-        <section className="relative isolate overflow-hidden py-20 sm:py-24">
-          <Image src="/lp/pneu-escuro.webp" alt="" fill sizes="100vw" className="-z-10 object-cover object-right opacity-50" />
-          <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-b from-[var(--fundo)] via-black/70 to-[var(--fundo)]" />
+        <section className="relative isolate overflow-hidden py-20 sm:py-28">
+          <Image src="/lp/pneu-sombra.webp" alt="" fill sizes="100vw" className="-z-10 object-cover object-center opacity-45" />
+          <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-b from-[var(--fundo)] via-black/60 to-[var(--fundo)]" />
           <div className="mx-auto max-w-6xl px-5 sm:px-8">
-            <div className="mx-auto max-w-3xl text-center">
-              <h2 className="fonte-destaque text-3xl font-extrabold leading-tight sm:text-[2.6rem]">
-                Por que escolher a <span className="text-[var(--vermelho)]">iAlves Pneus?</span>
+            <Revelar className="mx-auto max-w-2xl text-center">
+              <h2 className="fonte-destaque text-[2rem] font-extrabold leading-[1.1] sm:text-5xl">
+                Por que escolher
+                <br />
+                <span className="text-[var(--vermelho)]">a iAlves Pneus?</span>
               </h2>
-              <p className="mt-4 text-[17px] leading-relaxed text-zinc-300">
-                Trabalhamos para quem vive na estrada: atendimento honesto, pneu de qualidade e a segurança que o seu caminhão
-                precisa para continuar rodando.
+              <p className="mx-auto mt-5 max-w-xl text-[17px] leading-relaxed text-zinc-300">
+                A iAlves trabalha para quem vive na estrada, onde quer que você esteja. Atendimento honesto, pneu de
+                qualidade e a segurança que o seu caminhão precisa.
               </p>
-            </div>
-            <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10 sm:grid-cols-2 lg:grid-cols-4">
-              {DIFERENCIAIS.map(({ Icone, titulo, sub, texto }) => (
-                <div key={titulo} className="bg-[#0d0d0f]/95 p-6 sm:p-7">
-                  <Icone className="h-8 w-8 text-[var(--vermelho)]" />
-                  <h3 className="fonte-destaque mt-5 text-lg font-bold">{titulo}</h3>
-                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">{sub}</p>
-                  <span aria-hidden className="mt-4 block h-[2px] w-8 bg-[var(--vermelho)]" />
-                  <p className="mt-4 text-sm leading-relaxed text-zinc-400">{texto}</p>
-                </div>
+            </Revelar>
+            <div className="carrossel -mx-5 mt-12 flex gap-4 overflow-x-auto px-5 pb-4 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4">
+              {DIFERENCIAIS.map(({ Icone, titulo, sub, texto }, i) => (
+                <Revelar key={titulo} atraso={i * 110} className="w-[78%] shrink-0 sm:w-auto">
+                  <article className="cartao-diferencial relative h-full overflow-hidden rounded-2xl border border-white/10 bg-[#0f0f11]/90 p-6 backdrop-blur-sm sm:p-7">
+                    <span aria-hidden className="numero-diferencial fonte-destaque absolute right-5 top-3 text-6xl font-extrabold text-white/[0.06]">
+                      0{i + 1}
+                    </span>
+                    <span className="icone-diferencial flex h-14 w-14 items-center justify-center rounded-xl bg-[var(--vermelho)]/12 text-[var(--vermelho)]">
+                      <Icone className="h-7 w-7" />
+                    </span>
+                    <h3 className="fonte-destaque mt-6 text-xl font-bold">{titulo}</h3>
+                    <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">{sub}</p>
+                    <span aria-hidden className="linha-diferencial mt-4 block h-[3px] w-8 rounded-full bg-[var(--vermelho)]" />
+                    <p className="mt-4 text-[15px] leading-relaxed text-zinc-400">{texto}</p>
+                  </article>
+                </Revelar>
               ))}
             </div>
+            <p className="mt-3 text-center text-xs text-zinc-500 sm:hidden">Arraste para o lado para ver mais</p>
           </div>
         </section>
 
         {/* ── Especialidade: medidas ──────────────────────────────────── */}
-        <section id="medidas" className="relative isolate overflow-hidden border-y border-white/5 bg-black py-20 sm:py-24">
-          <Image
-            src="/lp/pneu-295.webp"
-            alt="Pneu de caminhão 295/80 aro 22,5"
-            width={1800}
-            height={552}
-            sizes="(max-width: 1024px) 100vw, 60vw"
-            className="pointer-events-none absolute -right-40 top-1/2 -z-10 w-[900px] max-w-none -translate-y-1/2 opacity-40 [-webkit-mask-image:linear-gradient(to_right,transparent_0%,black_35%,black_80%,transparent_100%)] [mask-image:linear-gradient(to_right,transparent_0%,black_35%,black_80%,transparent_100%)] lg:-right-24 lg:w-[1100px] lg:opacity-90"
-          />
-          <div className="mx-auto max-w-6xl px-5 sm:px-8">
-            <div className="max-w-xl">
+        <section id="medidas" className="relative overflow-hidden bg-gradient-to-br from-[#2a0609] via-[#120405] to-black py-20 sm:py-28">
+          <div aria-hidden className="absolute -left-32 top-0 h-96 w-96 rounded-full bg-[var(--vermelho)]/20 blur-3xl" />
+          <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 sm:px-8 lg:grid-cols-2 lg:gap-16">
+            <Revelar>
               <Sobretitulo>Especialidade</Sobretitulo>
-              <h2 className="fonte-destaque mt-3 text-3xl font-extrabold leading-tight sm:text-[2.6rem]">
-                Pneus aro 17,5 e 22,5 nas medidas que o seu caminhão usa
+              <h2 className="fonte-destaque mt-3 text-[2rem] font-extrabold leading-[1.1] sm:text-[2.6rem]">
+                Trabalhamos com as principais medidas aro 17,5 e 22,5
               </h2>
               <p className="mt-4 text-[17px] leading-relaxed text-zinc-300">
-                Alta quilometragem e ótimo custo-benefício. Toque na medida e a cotação já sai com ela.
+                Pneus de alta quilometragem, com excelente custo-benefício. Toque na medida e a cotação já sai com ela.
               </p>
-              <ul className="mt-8 divide-y divide-white/10 overflow-hidden rounded-2xl border border-white/10 bg-black/60 backdrop-blur-sm">
+              <ul className="mt-8 divide-y divide-white/10 overflow-hidden rounded-2xl border border-white/10 bg-black/50">
                 {MEDIDAS.map((m) => (
                   <li key={m.medida}>
                     <a
                       href={whatsappLink(`Olá! Vim pelo site e quero cotar o pneu ${m.medida}.`)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-white/[0.04]"
+                      className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-[var(--vermelho)]/10"
                     >
                       <span className="min-w-0 flex-1">
                         <span className="fonte-destaque block text-xl font-bold text-white">{m.medida}</span>
@@ -288,12 +289,31 @@ export default function Home() {
               <p className="mt-5 text-sm text-zinc-500">
                 Marcas como {MARCAS.slice(0, 8).join(', ')} e outras, conforme o estoque.
               </p>
-            </div>
+            </Revelar>
+            <Revelar atraso={150} className="relative">
+              <div aria-hidden className="absolute -inset-3 rounded-[2rem] bg-gradient-to-br from-[var(--vermelho)] to-transparent opacity-60 blur-xl" />
+              <div className="relative aspect-[4/5] overflow-hidden rounded-[1.75rem] border border-white/15 sm:aspect-[4/3] lg:aspect-[4/5]">
+                <Image
+                  src="/lp/pneus-empilhados.webp"
+                  alt="Pneus novos de caminhão empilhados no estoque"
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  className="object-cover transition-transform duration-[1.2s] hover:scale-105"
+                />
+                <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                <p className="fonte-destaque absolute bottom-5 left-5 right-5 text-lg font-bold leading-snug text-white">
+                  Liso e borrachudo, pronta entrega
+                  <span className="block text-sm font-medium text-zinc-300">direto de {SITE.city} para o Brasil</span>
+                </p>
+              </div>
+            </Revelar>
           </div>
         </section>
 
         {/* ── Monte sua cotação ───────────────────────────────────────── */}
-        <section id="cotacao" className="py-20 sm:py-24">
+        <section id="cotacao" className="relative isolate overflow-hidden py-20 sm:py-28">
+          <Image src="/lp/banda-rodagem.webp" alt="" fill sizes="100vw" className="-z-10 object-cover opacity-30" />
+          <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-r from-black via-black/85 to-black/60" />
           <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 sm:px-8 lg:grid-cols-[1fr_1.1fr] lg:gap-14">
             <div>
               <Sobretitulo>Cotação rápida</Sobretitulo>
@@ -310,7 +330,8 @@ export default function Home() {
         </section>
 
         {/* ── Liso ou borrachudo ──────────────────────────────────────── */}
-        <section id="liso-ou-borrachudo" className="border-y border-white/5 bg-[#0E0E10] py-20 sm:py-24">
+        <section id="liso-ou-borrachudo" className="relative overflow-hidden bg-gradient-to-b from-[#160406] via-[#0d0d0f] to-[#0d0d0f] py-20 sm:py-28">
+          <div aria-hidden className="absolute -right-40 -top-40 h-[28rem] w-[28rem] rounded-full bg-[var(--vermelho)]/15 blur-3xl" />
           <div className="mx-auto max-w-6xl px-5 sm:px-8">
             <div className="max-w-2xl">
               <Sobretitulo>Guia rápido</Sobretitulo>
@@ -334,7 +355,7 @@ export default function Home() {
                   pontos: ['Blocos que mordem o chão', 'Mais aderência em subida, chuva e terra', 'Ideal para o eixo de tração'],
                 },
               ].map(({ nome, sub, Banda, pontos }) => (
-                <article key={nome} className="flex flex-col gap-5 rounded-2xl border border-white/10 bg-black/50 p-6 sm:flex-row sm:gap-6 sm:p-8">
+                <article key={nome} className="relative flex flex-col gap-5 rounded-2xl border border-white/10 bg-black/60 p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[var(--vermelho)]/60 sm:flex-row sm:gap-6 sm:p-8">
                   <Banda className="h-32 w-auto shrink-0 self-start drop-shadow-[0_10px_20px_rgba(0,0,0,.6)] sm:h-48" />
                   <div className="min-w-0">
                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--vermelho)]">{sub}</p>
@@ -377,8 +398,8 @@ export default function Home() {
 
         {/* ── Atendimento imediato ────────────────────────────────────── */}
         <section className="relative isolate overflow-hidden py-20 sm:py-28">
-          <Image src="/lp/estrada.webp" alt="" fill sizes="100vw" className="-z-10 object-cover" />
-          <div aria-hidden className="absolute inset-0 -z-10 bg-black/45" />
+          <Image src="/lp/caminhao-estrada.webp" alt="Caminhão na estrada" fill sizes="100vw" className="-z-10 object-cover object-[70%_center]" />
+          <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-br from-[#b3080e]/85 via-[#5a0306]/80 to-black/85" />
           <div className="mx-auto max-w-3xl px-5 text-center sm:px-8">
             <p className="text-sm font-semibold uppercase tracking-[0.14em] text-white/80">Atendimento imediato</p>
             <h2 className="fonte-destaque mt-3 text-3xl font-extrabold leading-tight sm:text-5xl">

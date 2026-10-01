@@ -2,7 +2,7 @@
 
 export const SITE = {
   name: 'iAlves Pneus',
-  url: 'https://ialvespneus.com.br',
+  url: 'https://www.ialvespneus.com.br',
   /** WhatsApp de vendas, só números com DDI */
   whatsapp: '5511966397245',
   whatsappDisplay: '(11) 96639-7245',

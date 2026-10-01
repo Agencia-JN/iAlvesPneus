@@ -1,26 +1,29 @@
 import type { Metadata, Viewport } from 'next'
-import { Barlow_Condensed, Inter, Montserrat } from 'next/font/google'
+import localFont from 'next/font/local'
 import { SITE } from '@/config/site'
 import './globals.css'
 
-const titulos = Barlow_Condensed({
+// Fontes guardadas no próprio projeto (src/app/fontes): a publicação não
+// depende do Google Fonts responder na hora da compilação.
+const titulos = localFont({
   variable: '--font-titulo',
-  subsets: ['latin'],
-  weight: ['600', '700', '800'],
-  style: ['normal', 'italic'],
+  src: './fontes/barlow-condensed-latin-800-italic.woff2',
+  weight: '800',
+  style: 'italic',
   display: 'swap',
 })
 
-const destaque = Montserrat({
+const destaque = localFont({
   variable: '--font-destaque',
-  subsets: ['latin'],
-  weight: ['600', '700', '800'],
+  src: './fontes/montserrat-latin-wght-normal.woff2',
+  weight: '100 900',
   display: 'swap',
 })
 
-const texto = Inter({
+const texto = localFont({
   variable: '--font-texto',
-  subsets: ['latin'],
+  src: './fontes/inter-latin-wght-normal.woff2',
+  weight: '100 900',
   display: 'swap',
 })
 

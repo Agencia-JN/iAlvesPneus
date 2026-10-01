@@ -142,3 +142,26 @@ html { scroll-behavior: smooth; scroll-padding-top: 84px; }
 details > summary { list-style: none; }
 details > summary::-webkit-details-marker { display: none; }
 details[open] .giro { transform: rotate(45deg); }
+
+/* Surge ao rolar */
+.revelar { opacity: 0; transform: translateY(26px); transition: opacity .7s ease, transform .7s cubic-bezier(.2,.7,.2,1); }
+.revelar.visivel { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { .revelar { opacity: 1; transform: none; transition: none; } }
+
+/* Cartões do "Por que escolher": sobem, brilham e o ícone gira de leve */
+.cartao-diferencial { transition: transform .35s cubic-bezier(.2,.7,.2,1), border-color .35s ease, box-shadow .35s ease, background-color .35s ease; }
+.cartao-diferencial .icone-diferencial { transition: transform .45s cubic-bezier(.2,.7,.2,1), background-color .35s ease, color .35s ease; }
+.cartao-diferencial .linha-diferencial { transition: width .45s ease; }
+.cartao-diferencial .numero-diferencial { transition: color .35s ease, transform .45s ease; }
+@media (hover: hover) {
+  .cartao-diferencial:hover { transform: translateY(-10px) scale(1.03); border-color: rgba(227, 20, 27, 0.7); box-shadow: 0 24px 50px -18px rgba(227, 20, 27, 0.55); background-color: #151012; }
+  .cartao-diferencial:hover .icone-diferencial { transform: rotate(-8deg) scale(1.12); background-color: var(--vermelho); color: #fff; }
+  .cartao-diferencial:hover .linha-diferencial { width: 4rem; }
+  .cartao-diferencial:hover .numero-diferencial { color: rgba(227, 20, 27, 0.35); transform: translateY(-4px); }
+}
+.cartao-diferencial:active { transform: scale(0.98); }
+
+/* Carrossel de cartões no celular (arrasta para o lado) */
+.carrossel { scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.carrossel::-webkit-scrollbar { display: none; }
+.carrossel > * { scroll-snap-align: start; }
