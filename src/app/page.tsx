@@ -1,710 +1,543 @@
-"use client";
+import Image from 'next/image'
+import { AGENCY, MARCAS, MEDIDAS, SITE, whatsappLink } from '@/config/site'
+import { Cotador } from '@/components/lp/Cotador'
+import {
+  BandaBorrachuda,
+  BandaLisa,
+  IconeCheck,
+  IconeFacebook,
+  IconeInstagram,
+  IconeSeta,
+  IconeZap,
+} from '@/components/lp/icones'
 
-import { useState, useEffect, useMemo } from 'react';
-import Image from 'next/image';
-import Vitrine from '@/components/Vitrine';
-import BannerCarrossel, { Banner } from '@/components/BannerCarrossel';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { getWhatsappLink, getInstagramLink } from '@/lib/utils';
-import type { Pneu } from '@/components/Vitrine';
+// ─── Landing page da iAlves Pneus ──────────────────────────────────────────
+// Página estática (sem banco de dados): carrega rápido em 4G na estrada e
+// tudo leva para o WhatsApp da loja.
 
-// ─── Tipo de Configurações Globais ───────────────────────────────────────────
-interface SiteConfigs {
-  whatsapp_numero: string;
-  hero_ativo?: boolean;
-  mapa_ativo?: boolean;
-  endereco_completo?: string;
-  link_google_maps?: string;
-  link_waze?: string;
-  cep?: string;
-  rua?: string;
-  numero?: string;
-  bairro?: string;
-  cidade?: string;
-  estado?: string;
-  header_config: {
-    logo_url: string;
-    aviso_topo: string;
-    aviso_ativo: boolean;
-  };
-  hero_config: {
-    titulo: string;
-    subtitulo: string;
-    background_url: string;
-  };
-  footer_config: {
-    texto_rodape: string;
-    cnpj: string;
-    direitos_reservados: string;
-    links_sociais: {
-      instagram: string;
-      facebook: string;
-      youtube: string;
-      tiktok: string;
-    };
-  };
-  features_config: {
-    afiliado_ativo: boolean;
-    frete_ativo: boolean;
-    blog_ia_ativo: boolean;
-  };
-  banner_tempo_transicao?: number;
+const FAQ = [
+  {
+    p: 'Os pneus são novos?',
+    r: 'Sim. Trabalhamos com pneus novos para caminhão e ônibus, vendidos direto para o cliente final e para frotas.',
+  },
+  {
+    p: 'Como faço a cotação?',
+    r: 'Manda a medida do pneu no WhatsApp (ou uma foto da lateral do pneu) e a quantidade. Em poucos minutos você recebe o preço à vista e o que tem em estoque.',
+  },
+  {
+    p: 'Não sei a medida do meu pneu. E agora?',
+    r: 'Sem problema: tira uma foto da lateral do pneu, onde aparecem os números (ex.: 295/80 R22.5), e manda pra gente. A gente identifica e já te passa as opções.',
+  },
+  {
+    p: 'Qual a diferença entre pneu liso e borrachudo?',
+    r: 'O liso tem sulcos contínuos, roda mais macio e economiza no asfalto: vai no eixo direcional e nas carretas. O borrachudo tem blocos e mais aderência: vai no eixo de tração, onde o caminhão precisa de força pra sair e subir.',
+  },
+  {
+    p: 'Vocês têm pronta entrega?',
+    r: 'Sim, trabalhamos com pronta entrega, sujeita à disponibilidade do estoque. Na cotação você já fica sabendo o que tem disponível e combina a retirada ou a entrega.',
+  },
+  {
+    p: 'Atendem frota?',
+    r: 'Atendemos. Para compras em quantidade, chama no WhatsApp e fala quantos pneus e quais medidas: a gente monta uma proposta pra sua frota.',
+  },
+]
+
+function jsonLd() {
+  const negocio = {
+    '@context': 'https://schema.org',
+    '@type': 'TireShop',
+    '@id': `${SITE.url}/#loja`,
+    name: SITE.name,
+    url: SITE.url,
+    logo: `${SITE.url}/lp/logo.webp`,
+    image: `${SITE.url}/lp/og.jpg`,
+    description:
+      'Pneus novos para caminhão e ônibus, liso e borrachudo, com pronta entrega, preço à vista e cotação pelo WhatsApp.',
+    telephone: `+${SITE.whatsapp}`,
+    priceRange: '$$',
+    currenciesAccepted: 'BRL',
+    address: { '@type': 'PostalAddress', addressLocality: SITE.city, addressRegion: SITE.region, addressCountry: 'BR' },
+    areaServed: { '@type': 'State', name: 'São Paulo' },
+    sameAs: [SITE.instagram, SITE.facebook],
+    contactPoint: {
+      '@type': 'ContactPoint',
+      telephone: `+${SITE.whatsapp}`,
+      contactType: 'sales',
+      availableLanguage: 'Portuguese',
+    },
+    makesOffer: MEDIDAS.map((m) => ({
+      '@type': 'Offer',
+      itemOffered: { '@type': 'Product', name: `Pneu ${m.medida}`, category: 'Pneus para caminhão' },
+    })),
+  }
+  const perguntas = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: FAQ.map((f) => ({ '@type': 'Question', name: f.p, acceptedAnswer: { '@type': 'Answer', text: f.r } })),
+  }
+  const site = { '@context': 'https://schema.org', '@type': 'WebSite', name: SITE.name, url: SITE.url, inLanguage: 'pt-BR' }
+  return JSON.stringify([negocio, perguntas, site]).replace(/</g, '\\u003c')
 }
 
-// ─── Estado inicial — valores vazios para evitar flash no mount ────────────
-const CONFIGS_DEFAULT: SiteConfigs = {
-  whatsapp_numero: '5511999999999',
-  hero_ativo: false,
-  mapa_ativo: false,
-  endereco_completo: '',
-  link_google_maps: '',
-  link_waze: '',
-  cep: '',
-  rua: '',
-  numero: '',
-  bairro: '',
-  cidade: '',
-  estado: '',
-  header_config: {
-    logo_url: '',
-    aviso_topo: '🔥 OFERTA DE INAUGURAÇÃO: FRETE GRÁTIS PARA COMPRAS ACIMA DE 4 PNEUS!',
-    aviso_ativo: true,
-  },
-  hero_config: {
-    titulo: 'ROBUSTEZ EXTREMA',
-    subtitulo: 'Fornecimento direto de pneus novos de alta durabilidade e máxima tração. Desempenho profissional projetado para frotas de caminhões e implementos rodoviários. Preço à vista imbatível.',
-    background_url: '',
-  },
-  footer_config: {
-    texto_rodape: '',
-    cnpj: '',
-    direitos_reservados: '',
-    links_sociais: { instagram: '', facebook: '', youtube: '', tiktok: '' },
-  },
-  features_config: {
-    afiliado_ativo: false,
-    frete_ativo: true,
-    blog_ia_ativo: false,
-  },
-  banner_tempo_transicao: 6,
-};
+function Rotulo({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mb-3 flex items-center gap-3 text-xs font-bold uppercase tracking-[0.24em] text-[var(--vermelho)]">
+      <span aria-hidden className="h-[2px] w-8 bg-[var(--vermelho)]" />
+      {children}
+    </p>
+  )
+}
+
+function BotaoZap({ children, mensagem, className = '' }: { children: React.ReactNode; mensagem?: string; className?: string }) {
+  return (
+    <a
+      href={whatsappLink(mensagem)}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`botao-zap inline-flex h-14 items-center justify-center gap-3 rounded-2xl px-7 text-base font-bold text-white ${className}`}
+    >
+      <IconeZap className="h-6 w-6" />
+      {children}
+    </a>
+  )
+}
 
 export default function Home() {
-  const [configs, setConfigs] = useState<SiteConfigs>(CONFIGS_DEFAULT);
-  const [banners, setBanners] = useState<Banner[]>([]);
-  const [pneus, setPneus] = useState<Pneu[]>([]);
-  const [siteLoaded, setSiteLoaded] = useState(false);
-
-  useEffect(() => {
-    // ── Desativa restauração automática de scroll do browser (evita F5 abrir no meio da página) ──
-    if (typeof window !== 'undefined') {
-      window.history.scrollRestoration = 'manual';
-      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-    }
-
-    if (!isSupabaseConfigured()) {
-      setSiteLoaded(true);
-      return;
-    }
-
-    // ── Todas as queries em paralelo — elimina latência em série ────────────
-    Promise.all([
-      supabase.from('configuracoes').select('*').eq('id', 1).maybeSingle(),
-      supabase.from('banners').select('*').eq('ativo', true).order('ordem', { ascending: true }),
-      supabase.from('pneus').select('*').eq('visibilidade', 'publico').eq('status_produto', 'ativo').gt('quantidade_estoque', 0).order('posicao_destaque', { ascending: false }),
-    ])
-      .then(([{ data: configData }, { data: bannerData }, { data: pneusData }]) => {
-        // 1. Configs
-        if (configData) {
-          const h = configData.header_config || {};
-          const he = configData.hero_config || {};
-          const f = configData.footer_config || {};
-          const ft = configData.features_config || {};
-
-          setConfigs({
-            whatsapp_numero: configData.whatsapp_numero || CONFIGS_DEFAULT.whatsapp_numero,
-            hero_ativo: configData.hero_ativo === true,
-            header_config: {
-              logo_url: h.logo_url || CONFIGS_DEFAULT.header_config.logo_url,
-              aviso_topo: h.aviso_topo || CONFIGS_DEFAULT.header_config.aviso_topo,
-              aviso_ativo: h.aviso_ativo !== false,
-            },
-            hero_config: {
-              titulo: he.titulo || CONFIGS_DEFAULT.hero_config.titulo,
-              subtitulo: he.subtitulo || CONFIGS_DEFAULT.hero_config.subtitulo,
-              background_url: he.background_url || '',
-            },
-            footer_config: {
-              texto_rodape: f.texto_rodape ?? '',
-              cnpj: f.cnpj ?? '',
-              direitos_reservados: f.direitos_reservados ?? '',
-              links_sociais: {
-                instagram: f.links_sociais?.instagram ?? '',
-                facebook: f.links_sociais?.facebook ?? '',
-                youtube: f.links_sociais?.youtube ?? '',
-                tiktok: f.links_sociais?.tiktok ?? '',
-              },
-            },
-            features_config: {
-              afiliado_ativo: !!ft.afiliado_ativo,
-              frete_ativo: ft.frete_ativo !== false,
-              blog_ia_ativo: !!ft.blog_ia_ativo,
-            },
-            banner_tempo_transicao: configData.banner_tempo_transicao !== undefined && configData.banner_tempo_transicao !== null 
-              ? Number(configData.banner_tempo_transicao) 
-              : 6,
-            mapa_ativo: configData.mapa_ativo === true,
-            endereco_completo: configData.endereco_completo || '',
-            link_google_maps: configData.link_google_maps || '',
-            link_waze: configData.link_waze || '',
-            cep: configData.cep || '',
-            rua: configData.rua || '',
-            numero: configData.numero || '',
-            bairro: configData.bairro || '',
-            cidade: configData.cidade || '',
-            estado: configData.estado || '',
-          });
-        }
-
-        // 2. Banners
-        if (bannerData) {
-          setBanners(bannerData.map((b: any) => ({
-            id: b.id,
-            imagem_url: b.imagem_url,
-            link_redirecionamento: b.link_redirecionamento,
-            ativo: b.ativo,
-            ordem: b.ordem,
-          })));
-        } else {
-          setBanners([]);
-        }
-
-        // 3. Pneus — passados diretamente para o componente Vitrine
-        if (pneusData) {
-          setPneus(pneusData as Pneu[]);
-        } else {
-          setPneus([]);
-        }
-      })
-      .catch((err) => console.error('[iAlves] Erro ao carregar dados:', err))
-      .finally(() => setSiteLoaded(true));
-  }, []);
-
-  // Derivados — evita recalcular no render
-  const avisoFreteAtivo = useMemo(
-    () => configs.header_config.aviso_ativo && !!configs.header_config.aviso_topo.trim(),
-    [configs.header_config.aviso_ativo, configs.header_config.aviso_topo]
-  );
-
-  const telFormatada = useMemo(() => {
-    const digits = configs.whatsapp_numero.replace(/\D/g, '');
-    const cleanDigits = digits.startsWith('55') && (digits.length === 12 || digits.length === 13)
-      ? digits.slice(2)
-      : digits;
-    
-    if (cleanDigits.length === 11) {
-      return `(${cleanDigits.slice(0, 2)}) ${cleanDigits.slice(2, 7)}-${cleanDigits.slice(7)}`;
-    }
-    if (cleanDigits.length === 10) {
-      return `(${cleanDigits.slice(0, 2)}) ${cleanDigits.slice(2, 6)}-${cleanDigits.slice(6)}`;
-    }
-    return configs.whatsapp_numero;
-  }, [configs.whatsapp_numero]);
-
-  const jsonLd = useMemo(() => {
-    const phone = configs.whatsapp_numero ? `+${configs.whatsapp_numero.replace(/\D/g, '')}` : '+5500000000000';
-    return {
-      "@context": "https://schema.org",
-      "@graph": [
-        {
-          "@type": "LocalBusiness",
-          "@id": "https://ialvespneus.com.br/#localbusiness",
-          "name": "iAlves Pneus",
-          "image": "https://ialvespneus.com.br/logoiAlves.png",
-          "telephone": phone,
-          "url": "https://ialvespneus.com.br",
-          "priceRange": "$$",
-          "address": {
-            "@type": "PostalAddress",
-            "streetAddress": "Rodovia BR-101",
-            "addressLocality": "Goiânia",
-            "addressRegion": "GO",
-            "postalCode": "74000-000",
-            "addressCountry": "BR"
-          },
-          "openingHoursSpecification": {
-            "@type": "OpeningHoursSpecification",
-            "dayOfWeek": [
-              "Monday",
-              "Tuesday",
-              "Wednesday",
-              "Thursday",
-              "Friday"
-            ],
-            "opens": "08:00",
-            "closes": "18:00"
-          }
-        },
-        {
-          "@type": "AutoPartsStore",
-          "@id": "https://ialvespneus.com.br/#autopartsstore",
-          "name": "iAlves Pneus",
-          "description": "iAlves Pneus - Distribuidora especializada em pneus de carga, pneus para caminhão, recapagem e rodas.",
-          "telephone": phone,
-          "url": "https://ialvespneus.com.br"
-        }
-      ]
-    };
-  }, [configs.whatsapp_numero]);
-
-  const enderecoFormatado = useMemo(() => {
-    if (configs.rua?.trim() && configs.cidade?.trim()) {
-      let formatStr = `${configs.rua.trim()}, ${configs.numero?.trim() || 'S/N'}`;
-      if (configs.bairro?.trim()) formatStr += ` - ${configs.bairro.trim()}`;
-      formatStr += `, ${configs.cidade.trim()}`;
-      if (configs.estado?.trim()) formatStr += ` - ${configs.estado.trim()}`;
-      if (configs.cep?.trim()) formatStr += `, ${configs.cep.trim()}`;
-      return formatStr;
-    }
-    return configs.endereco_completo?.trim() || '';
-  }, [configs.rua, configs.numero, configs.bairro, configs.cidade, configs.estado, configs.cep, configs.endereco_completo]);
+  const fita = [...MEDIDAS.map((m) => m.medida), 'Liso', 'Borrachudo', 'Pronta entrega', 'Preço à vista']
 
   return (
-    <div className="text-white selection:bg-[#DC2626] selection:text-white w-full max-w-full">
-      {/* Dados Estruturados JSON-LD */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd() }} />
 
-      {/* ═══ DESKTOP HEADER (Fixo) ═══ */}
-      <div className="hidden md:block fixed top-0 left-0 right-0 z-50 w-full">
-        {avisoFreteAtivo && (
-          <div className="bg-[#DC2626] text-white text-center h-8 px-3 text-[10px] font-black uppercase tracking-wider w-full flex items-center justify-center">
-            <div className="flex items-center justify-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping shrink-0"></span>
-              <span className="leading-none truncate">{configs.header_config.aviso_topo}</span>
-            </div>
-          </div>
-        )}
-        <header className="w-full bg-black/40 backdrop-blur-md border-b border-gray-800/40">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-24 flex items-center justify-between">
-            {configs.header_config.logo_url ? (
-              <img
-                src={configs.header_config.logo_url}
-                alt="iAlves Pneus"
-                className="h-20 w-auto object-contain shrink-0"
-              />
-            ) : (
-              <div className="h-20 w-20 bg-gray-800 animate-pulse rounded-full shrink-0" />
-            )}
-            <div className="flex items-center gap-5">
+      {/* ── Cabeçalho ─────────────────────────────────────────────────── */}
+      <header className="fixed inset-x-0 top-0 z-40 border-b border-white/5 bg-[#0A0A0B]/85 backdrop-blur-md">
+        <div className="mx-auto flex h-[68px] max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+          <a href="#inicio" aria-label="iAlves Pneus, início" className="shrink-0">
+            <Image src="/lp/logo.webp" alt="iAlves Pneus" width={560} height={239} priority className="h-10 w-auto sm:h-11" />
+          </a>
+          <nav aria-label="Seções" className="hidden items-center gap-7 text-sm font-semibold text-zinc-300 md:flex">
+            <a href="#medidas" className="hover:text-white">Medidas</a>
+            <a href="#liso-ou-borrachudo" className="hover:text-white">Liso ou borrachudo</a>
+            <a href="#indicacao" className="hover:text-white">Indique e ganhe</a>
+            <a href="#duvidas" className="hover:text-white">Dúvidas</a>
+          </nav>
+          <a
+            href={whatsappLink()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="botao-zap inline-flex h-11 items-center gap-2 rounded-xl px-4 text-sm font-bold text-white"
+          >
+            <IconeZap className="h-5 w-5" />
+            <span className="hidden sm:inline">Cotar no WhatsApp</span>
+            <span className="sm:hidden">Cotar</span>
+          </a>
+        </div>
+      </header>
+
+      <main id="inicio" className="overflow-x-clip bg-[var(--fundo)] text-white">
+        {/* ── Hero ────────────────────────────────────────────────────── */}
+        <section className="relative isolate min-h-[100svh] pt-[68px]">
+          <picture className="absolute inset-0 -z-10">
+            <source media="(max-width: 767px)" srcSet="/lp/galpao-mobile.webp" />
+            <img src="/lp/galpao.webp" alt="" fetchPriority="high" className="h-full w-full object-cover object-[65%_center] opacity-60 md:opacity-70" />
+          </picture>
+          <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-r from-black via-black/80 to-black/10" />
+          <div aria-hidden className="absolute inset-x-0 bottom-0 -z-10 h-48 bg-gradient-to-t from-[var(--fundo)] to-transparent" />
+
+          <div className="mx-auto flex min-h-[calc(100svh-68px)] max-w-6xl flex-col justify-center px-4 py-14 sm:px-6">
+            <p className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-white/15 bg-black/40 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-200 backdrop-blur">
+              <span className="h-2 w-2 rounded-full bg-[var(--zap)] shadow-[0_0_10px_var(--zap)]" aria-hidden />
+              Atendendo agora no WhatsApp
+            </p>
+            <h1 className="titulo max-w-3xl text-[3.1rem] sm:text-7xl lg:text-[5.6rem]">
+              <span className="texto-cromado">Pneus para caminhão</span>
+              <br />
+              <span className="text-[var(--vermelho)]">com preço na mão</span>
+              <br />
+              <span className="texto-cromado">em 2 minutos.</span>
+            </h1>
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-zinc-300">
+              Manda a medida no WhatsApp e recebe na hora o <strong className="text-white">preço à vista</strong> e o que tem em
+              estoque. Pneus novos, liso e borrachudo, sem cadastro e sem enrolação.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <BotaoZap>Quero minha cotação</BotaoZap>
               <a
-                href={siteLoaded ? getWhatsappLink(configs.whatsapp_numero, 'Olá, vim através do site.') : '#'}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex flex-col text-right group cursor-pointer"
+                href="#cotacao"
+                className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/5 px-7 text-base font-bold text-white backdrop-blur hover:bg-white/10"
               >
-                <span className="text-[9px] text-gray-500 font-bold uppercase tracking-widest group-hover:text-[#22C55E] transition-colors">Suporte Comercial</span>
-                {!siteLoaded ? (
-                  <div className="h-4 w-28 bg-gray-800 animate-pulse rounded-sm mt-0.5 ml-auto self-end"></div>
-                ) : (
-                  <span className="text-sm font-black text-white group-hover:text-[#22C55E] transition-colors">{telFormatada}</span>
-                )}
-              </a>
-              <a
-                href="#vitrine-produtos"
-                className="px-5 py-2.5 bg-[#DC2626] hover:bg-white text-white hover:text-black font-black text-xs uppercase tracking-wider rounded-none transition-colors"
-              >
-                Ver Estoque
+                Montar a cotação aqui <IconeSeta className="h-5 w-5" />
               </a>
             </div>
+            <ul className="mt-10 grid max-w-2xl grid-cols-2 gap-x-6 gap-y-3 text-sm font-semibold text-zinc-200 sm:grid-cols-4">
+              {['Pneus novos', 'Pronta entrega', 'Preço à vista', 'Sem cadastro'].map((t) => (
+                <li key={t} className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--vermelho)]">
+                    <IconeCheck className="h-3.5 w-3.5 text-white" />
+                  </span>
+                  {t}
+                </li>
+              ))}
+            </ul>
           </div>
-        </header>
-      </div>
+        </section>
 
-      {/* Spacer Desktop */}
-      <div className="hidden md:block h-[128px]"></div>
-
-      {/* ═══ MOBILE HEADER ═══ */}
-      <div className="block md:hidden w-full">
-        {avisoFreteAtivo && (
-          <div className="bg-[#DC2626] text-white text-center py-2 px-3 text-[10px] font-black uppercase tracking-wider w-full flex items-center justify-center">
-            <div className="flex items-center justify-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping shrink-0"></span>
-              <span className="leading-none">{configs.header_config.aviso_topo}</span>
+        {/* ── Fita de medidas ─────────────────────────────────────────── */}
+        <div aria-hidden className="relative z-10 -my-4 py-4">
+          <div className="faixa-diagonal overflow-hidden py-3.5">
+            <div className="fita flex w-max gap-10 whitespace-nowrap">
+              {[...fita, ...fita, ...fita, ...fita].map((t, i) => (
+                <span key={i} className="titulo flex items-center gap-10 text-2xl text-white">
+                  {t}
+                  <span className="h-2 w-2 rotate-45 bg-black/60" />
+                </span>
+              ))}
             </div>
-          </div>
-        )}
-        <div className="bg-[#0B0B0C] px-4 py-3 flex items-center justify-between border-b border-gray-800/60">
-          {configs.header_config.logo_url ? (
-            <img
-              src={configs.header_config.logo_url}
-              alt="iAlves Pneus"
-              className="h-16 sm:h-20 w-auto object-contain"
-            />
-          ) : (
-            <div className="h-16 w-16 sm:h-20 sm:w-20 bg-gray-800 animate-pulse rounded-full" />
-          )}
-          <div className="flex items-center gap-3">
-            <a
-              href={getWhatsappLink(configs.whatsapp_numero, 'Olá, vim através do site.')}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-10 h-10 flex items-center justify-center bg-[#25D366] hover:bg-[#1EBE5D] text-white rounded-full shadow-lg shadow-[#25D366]/30 transition-all duration-300"
-              aria-label="WhatsApp"
-            >
-              <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.965C16.57 1.977 14.1 1.053 11.998 1.053c-5.444 0-9.87 4.372-9.874 9.802-.001 1.77.472 3.498 1.372 5.068L2.536 21.5l5.111-1.346zm10.748-5.321c-.281-.14-.165-.37-.842-.71-.165-.083-.289-.124-.413.062-.124.186-.48.601-.587.723-.107.122-.215.138-.496.002-.28-.138-1.185-.437-2.257-1.393-.834-.743-1.397-1.66-1.562-1.94-.165-.282-.018-.434.122-.573.126-.124.281-.328.422-.493.14-.166.187-.282.281-.469.094-.187.047-.352-.023-.493-.07-.14-.587-1.413-.805-1.942-.211-.515-.425-.443-.587-.451-.15-.008-.323-.01-.497-.01-.174 0-.458.065-.697.323-.24.258-.916.895-.916 2.182 0 1.287.937 2.531 1.068 2.707.13.176 1.84 2.809 4.459 3.941.623.27 1.11.43 1.488.55.627.2 1.2.172 1.65.105.503-.074 1.547-.633 1.765-1.246.219-.613.219-1.139.153-1.246-.067-.109-.244-.166-.525-.307z"/>
-              </svg>
-            </a>
-            <a
-              href="#vitrine-produtos"
-              className="px-3 py-2 bg-[#DC2626] hover:bg-[#B91C1C] text-white font-black text-[9px] uppercase tracking-widest transition-colors rounded-none"
-            >
-              Estoque
-            </a>
           </div>
         </div>
-      </div>
 
-      {/* ═══ BANNER CARROSSEL ═══ */}
-      <BannerCarrossel
-        banners={banners}
-        heroBackgroundUrl={configs.hero_config.background_url}
-        tempoTransicao={configs.banner_tempo_transicao}
-      />
-
-      {/* ═══ HERO BANNER CONDICIONAL ═══ */}
-      {configs.hero_ativo && (
-        <section className="relative w-full py-16 sm:py-24 bg-[#09090A] border-b border-gray-900 overflow-hidden">
-          {/* Luz de fundo sutil vermelha */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(220,38,38,0.03),transparent_60%)] pointer-events-none"></div>
-          
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center space-y-6">
-            <span className="inline-block bg-[#DC2626]/10 border border-[#DC2626]/30 text-[#DC2626] text-[10px] font-black px-4 py-1.5 uppercase tracking-widest">
-              iAlves Pneus
-            </span>
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black uppercase tracking-tight text-white leading-tight">
-              {configs.hero_config.titulo}
-            </h1>
-            <p className="max-w-3xl mx-auto text-sm sm:text-base lg:text-lg font-bold text-gray-400 leading-relaxed">
-              {configs.hero_config.subtitulo}
-            </p>
-            <div className="pt-4 flex flex-wrap justify-center gap-4">
-              <a
-                href="#vitrine-produtos"
-                className="px-8 py-3.5 bg-[#DC2626] hover:bg-[#B91C1C] text-white font-extrabold text-xs uppercase tracking-widest transition-all duration-300 rounded-none shadow-lg shadow-[#DC2626]/10"
-              >
-                Conhecer Produtos
-              </a>
-              <a
-                href={getWhatsappLink(configs.whatsapp_numero, 'Olá, vim através do site.')}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-8 py-3.5 bg-transparent border border-gray-800 hover:border-gray-600 hover:bg-white/5 text-white font-extrabold text-xs uppercase tracking-widest transition-all duration-300 rounded-none"
-              >
-                Falar com Vendedor
-              </a>
+        {/* ── Monte sua cotação ───────────────────────────────────────── */}
+        <section id="cotacao" className="textura-grade relative py-20 sm:py-28">
+          <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-[1fr_1.1fr]">
+            <div>
+              <Rotulo>Cotação rápida</Rotulo>
+              <h2 className="titulo text-5xl sm:text-6xl">
+                Três toques e <span className="text-[var(--vermelho)]">pronto.</span>
+              </h2>
+              <p className="mt-5 max-w-md text-lg leading-relaxed text-zinc-300">
+                Escolhe a medida, o tipo e a quantidade. A mensagem já vai pronta para o nosso WhatsApp, e a gente responde com o
+                preço à vista e a disponibilidade.
+              </p>
+              <ol className="mt-8 space-y-4">
+                {[
+                  ['Você manda', 'a medida (ou a foto do pneu) e a quantidade.'],
+                  ['A gente responde', 'com preço à vista e o que tem em estoque.'],
+                  ['Fechou?', 'Combina pagamento e retirada ou entrega, e seu caminhão volta pra estrada.'],
+                ].map(([t, d], i) => (
+                  <li key={t} className="flex gap-4">
+                    <span className="titulo flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-2xl text-[var(--vermelho)]">
+                      {i + 1}
+                    </span>
+                    <p className="pt-1.5 text-zinc-300">
+                      <strong className="text-white">{t}</strong> {d}
+                    </p>
+                  </li>
+                ))}
+              </ol>
             </div>
+            <Cotador />
           </div>
         </section>
-      )}
 
-      {/* ═══ VITRINE DE PRODUTOS ═══ */}
-      <main id="vitrine-produtos" className="bg-[#0B0B0C] w-full">
-        <Vitrine
-          avisoFreteAtivo={avisoFreteAtivo}
-          whatsappNumero={configs.whatsapp_numero}
-          pneusIniciais={pneus}
-          campanhaAfiliado={configs.features_config.afiliado_ativo}
-        />
-      </main>
-
-      {/* ═══ CAMPANHA INDICAÇÃO PREMIADA ═══ */}
-      {configs.features_config.afiliado_ativo && (
-        <section className="py-20 bg-black relative overflow-hidden w-full">
-          <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-[#DC2626]/3 blur-[120px] rounded-full pointer-events-none"></div>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <div className="glass-panel p-8 sm:p-16 rounded-none grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-              <div className="lg:col-span-7 space-y-6">
-                <div className="inline-block bg-[#DC2626]/15 border border-[#DC2626]/30 text-[#DC2626] text-xs font-extrabold px-3 py-1.5 uppercase tracking-widest">
-                  Programa de Parcerias
-                </div>
-                <h2 className="text-4xl sm:text-6xl font-black uppercase tracking-tight text-white leading-none">
-                  INDICAÇÃO<br/>
-                  <span className="text-[#DC2626]">PREMIADA</span>
-                </h2>
-                <p className="text-xl font-bold text-gray-300">INDICOU — COMPROU — GANHOU</p>
-                <div className="space-y-4 pt-2">
-                  <div className="p-6 bg-black/40 border border-gray-800 backdrop-blur-sm rounded-none">
-                    <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1">Como funciona?</p>
-                    <p className="text-3xl font-black text-white">
-                      Ganhe R$ 20,00 <span className="text-lg font-bold text-gray-400">por pneu indicado</span>
-                    </p>
-                  </div>
-                  <div className="p-6 bg-[#DC2626]/5 border border-[#DC2626]/10 rounded-none">
-                    <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1">Exemplo prático de ganhos:</p>
-                    <p className="text-gray-200 text-sm font-semibold">
-                      Indicou um cliente que comprou <span className="text-[#DC2626] font-black">10 pneus</span> ={' '}
-                      <span className="text-[#DC2626] font-black text-lg">R$ 200,00</span> de premiação via PIX!
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 text-xs text-gray-500 pt-2 font-medium">
-                  <span className="text-[#DC2626] text-lg leading-none">●</span>
-                  <p>
-                    <span className="font-bold text-white">PARTE DAS VENDAS AJUDA O PROJETO SEMEAR.</span> A cada indicação qualificada que resulta em compra, apoiamos projetos de alimentação e apoio social local.
-                  </p>
-                </div>
-              </div>
-              <div className="lg:col-span-5 space-y-8 flex flex-col items-center lg:items-end justify-center">
-                <div className="relative w-48 h-48 sm:w-56 sm:h-56 shrink-0 z-10">
-                  <div className="absolute inset-0 bg-[#DC2626]/5 blur-[60px] rounded-full z-0"></div>
-                  <div className="relative w-full h-full p-4 bg-black/30 border border-gray-800/40 backdrop-blur-sm flex items-center justify-center rounded-none shadow-xl">
-                    <Image
-                      src="/pneu_borrachudo.png"
-                      alt="Pneu Indicado"
-                      fill
-                      sizes="(max-width: 768px) 192px, 224px"
-                      className="object-contain"
-                    />
-                  </div>
-                </div>
+        {/* ── Medidas ─────────────────────────────────────────────────── */}
+        <section id="medidas" className="relative py-20 sm:py-28">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <div className="max-w-2xl">
+              <Rotulo>Medidas</Rotulo>
+              <h2 className="titulo text-5xl sm:text-6xl">
+                As medidas que <span className="text-[var(--vermelho)]">mais rodam</span> no Brasil
+              </h2>
+              <p className="mt-5 text-lg leading-relaxed text-zinc-300">
+                Do VUC ao cavalo mecânico. Toca na medida do seu caminhão e a cotação já sai com ela.
+              </p>
+            </div>
+            <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {MEDIDAS.map((m) => (
                 <a
-                  href={getWhatsappLink(configs.whatsapp_numero, 'Olá! Vi o banner de Indicação Premiada no site e gostaria de saber como me cadastrar para indicar clientes e ganhar R$20 por pneu.')}
+                  key={m.medida}
+                  href={whatsappLink(`Olá! Vim pelo site e quero cotar o pneu ${m.medida}.`)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full text-center px-6 py-5 bg-[#DC2626] hover:bg-[#B91C1C] text-white font-extrabold uppercase text-xs tracking-widest transition-all duration-300 rounded-none shadow-lg shadow-[#DC2626]/15"
+                  className="group relative flex flex-col overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.01] p-6 transition-all hover:-translate-y-1 hover:border-[var(--vermelho)]/60"
                 >
-                  Quero Indicar Pneus
+                  {m.destaque && (
+                    <span className="absolute right-4 top-4 rounded-full bg-[var(--vermelho)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider">
+                      Mais pedido
+                    </span>
+                  )}
+                  <span className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">Pneu</span>
+                  <h3 className="titulo mt-2 text-[2.6rem] text-white">{m.medida}</h3>
+                  <p className="mt-3 flex-1 text-sm leading-relaxed text-zinc-400">{m.uso}</p>
+                  <p className="mt-6 text-xs font-semibold uppercase tracking-wider text-zinc-500">Liso e borrachudo</p>
+                  <span className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[var(--zap)]">
+                    Cotar esta medida <IconeSeta className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </span>
                 </a>
-              </div>
+              ))}
             </div>
-          </div>
-        </section>
-      )}      {/* ═══ SEÇÃO DE LOCALIZAÇÃO / MAPA ═══ */}
-      {configs.mapa_ativo && enderecoFormatado && enderecoFormatado.trim() !== "" && (
-        <section className="py-16 sm:py-20 bg-[#0B0B0C] border-t border-gray-900 w-full relative">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-              
-              {/* Coluna 1: Informações e Ações */}
-              <div className="lg:col-span-5 space-y-6">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-1 h-3 bg-[#DC2626] shrink-0"></span>
-                  <span className="text-[#DC2626] font-extrabold uppercase tracking-widest text-xs">Visite nossa Loja</span>
-                </div>
-                
-                <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white leading-none">
-                  ONDE ESTAMOS<br/>
-                  <span className="text-gray-500 text-2xl sm:text-3xl font-extrabold">LOCALIZAÇÃO FÍSICA</span>
-                </h2>
-
-                <p className="text-sm text-gray-300 font-bold uppercase tracking-wide leading-relaxed font-mono">
-                  {enderecoFormatado}
-                </p>
-
-                <div className="flex flex-col sm:flex-row gap-4 pt-2">
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoFormatado)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 flex items-center justify-center gap-2.5 px-6 py-4 bg-transparent border border-gray-800 hover:border-gray-500 hover:bg-white/5 text-white font-extrabold text-xs uppercase tracking-widest transition-all duration-300 rounded-none shadow-md"
-                  >
-                    <svg className="w-4 h-4 fill-current text-[#4285F4]" viewBox="0 0 24 24">
-                      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                    </svg>
-                    Abrir no Google Maps
-                  </a>
-                  <a
-                    href={`https://waze.com/ul?q=${encodeURIComponent(enderecoFormatado)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 flex items-center justify-center gap-2.5 px-6 py-4 bg-transparent border border-gray-800 hover:border-gray-500 hover:bg-white/5 text-white font-extrabold text-xs uppercase tracking-widest transition-all duration-300 rounded-none shadow-md"
-                  >
-                    <svg className="w-4 h-4 fill-current text-[#33CCFF]" viewBox="0 0 24 24">
-                      <path d="M19.46 12.39a3.83 3.83 0 0 1 .49.33c.8.68 1.25 1.62 1.25 2.62a3.46 3.46 0 0 1-1.63 2.92c-.67.43-1.47.65-2.28.65a5.54 5.54 0 0 1-.5-.03c-.27.46-.77.78-1.34.78h-4.3c-.64 0-1.17-.38-1.4-.92a4.43 4.43 0 0 1-1.89-.96c-.45-.4-.78-.91-.94-1.48a3.17 3.17 0 0 1-1.67-.32c-.52-.3-.89-.78-1.04-1.35-.12-.47-.07-.97.14-1.4a3.68 3.68 0 0 1 1.77-1.78l-.13-.39a4.8 4.8 0 0 1-.22-1.46c0-2.3 2.05-4.18 4.56-4.18 1.54 0 2.94.7 3.76 1.79a6.22 6.22 0 0 1 4.54 1.76c.48.45.85.99 1.1 1.58.45.45.74 1 .83 1.6zM12.63 7.82c-1.87 0-3.39 1.4-3.39 3.12 0 .33.06.66.17.97l.15.4.38-.13a4.23 4.23 0 0 1 2.69 0l.37.13.16-.4c.1-.31.17-.64.17-.97 0-1.72-1.52-3.12-3.39-3.12zm4.18 4.67a1.64 1.64 0 1 0 0-3.28 1.64 1.64 0 0 0 0 3.28z"/>
-                    </svg>
-                    Ir com o Waze
-                  </a>
-                </div>
-              </div>
-
-              {/* Coluna 2: Mapa Integrado */}
-              <div className="lg:col-span-7 w-full border border-gray-900/60 p-2 bg-black/40 backdrop-blur-sm">
-                <iframe
-                  width="100%"
-                  height="400"
-                  style={{ border: 0 }}
-                  loading="lazy"
-                  allowFullScreen
-                  src={`https://maps.google.com/maps?q=${encodeURIComponent(enderecoFormatado)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
-                ></iframe>
-              </div>
-
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ═══ FOOTER PREMIUM ═══ */}
-      <footer className="bg-[#09090B] border-t border-gray-900 pt-16 pb-12 text-gray-500 text-xs w-full">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pb-12 border-b border-gray-900/60">
-
-            {/* Marca & Bio */}
-            <div className="space-y-4 col-span-1 md:col-span-2">
-              <div className="relative flex items-center justify-start">
-                {configs.header_config.logo_url ? (
-                  <img
-                    src={configs.header_config.logo_url}
-                    alt="iAlves Pneus"
-                    className="h-16 w-auto object-contain"
-                  />
-                ) : (
-                  <div className="h-16 w-16 bg-gray-800 animate-pulse rounded-full" />
-                )}
-              </div>
-              <p className="text-gray-400 text-xs leading-relaxed max-w-sm">
-                Distribuidor especializado em pneus novos de alta performance e robustez extrema. Soluções de tração máxima para frotas de caminhões, ônibus e implementos rodoviários com o melhor custo-benefício do mercado.
-              </p>
-            </div>
-
-            {/* Navegação */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-1.5">
-                <span className="w-1 h-3 bg-[#DC2626] shrink-0"></span>
-                <span className="text-white font-black uppercase tracking-wider text-[10px]">Navegação</span>
-              </div>
-              <ul className="space-y-2 font-bold">
-                <li><a href="#vitrine-produtos" className="hover:text-[#DC2626] transition-colors">Vitrine de Pneus</a></li>
-                {configs.whatsapp_numero.trim() && (
-                  <li>
-                    <a href={getWhatsappLink(configs.whatsapp_numero, 'Olá, vim através do site.')} target="_blank" rel="noopener noreferrer" className="hover:text-[#DC2626] transition-colors">
-                      Suporte Comercial
-                    </a>
-                  </li>
-                )}
-              </ul>
-            </div>
-
-            {/* Redes Sociais */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-1.5">
-                <span className="w-1 h-3 bg-[#DC2626] shrink-0"></span>
-                <span className="text-white font-black uppercase tracking-wider text-[10px]">Redes Sociais</span>
-              </div>
-              <div className="flex items-center gap-3">
-                {configs.footer_config.links_sociais.instagram.trim() && (
-                  <a
-                    href={getInstagramLink(configs.footer_config.links_sociais.instagram)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-9 h-9 flex items-center justify-center bg-[#0F0F10] hover:bg-[#E1306C] border border-gray-850 hover:border-transparent text-gray-400 hover:text-white transition-all duration-300 rounded-none shadow-sm"
-                    aria-label="Instagram"
-                  >
-                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.051.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" />
-                    </svg>
-                  </a>
-                )}
-                {configs.footer_config.links_sociais.facebook.trim() && (
-                  <a
-                    href={configs.footer_config.links_sociais.facebook}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-9 h-9 flex items-center justify-center bg-[#0F0F10] hover:bg-[#1877F2] border border-gray-850 hover:border-transparent text-gray-400 hover:text-white transition-all duration-300 rounded-none shadow-sm"
-                    aria-label="Facebook"
-                  >
-                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                    </svg>
-                  </a>
-                )}
-                {configs.footer_config.links_sociais.youtube.trim() && (
-                  <a
-                    href={configs.footer_config.links_sociais.youtube}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-9 h-9 flex items-center justify-center bg-[#0F0F10] hover:bg-[#FF0000] border border-gray-850 hover:border-transparent text-gray-400 hover:text-white transition-all duration-300 rounded-none shadow-sm"
-                    aria-label="YouTube"
-                  >
-                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                      <path d="M23.498 6.163a3.003 3.003 0 00-2.11-2.108C19.53 3.53 12 3.53 12 3.53s-7.53 0-9.388.525A3.003 3.003 0 00.502 6.163C0 8.07 0 12 0 12s0 3.93.502 5.837a3.003 3.003 0 002.11 2.108C4.47 20.47 12 20.47 12 20.47s7.53 0 9.388-.525a3.003 3.003 0 002.11-2.108C24 15.93 24 12 24 12s0-3.93-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-                    </svg>
-                  </a>
-                )}
-                {configs.footer_config.links_sociais.tiktok.trim() && (
-                  <a
-                    href={configs.footer_config.links_sociais.tiktok}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-9 h-9 flex items-center justify-center bg-[#0F0F10] hover:bg-black border border-gray-850 hover:border-transparent text-gray-400 hover:text-white transition-all duration-300 rounded-none shadow-sm"
-                    aria-label="TikTok"
-                  >
-                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                      <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.86-.74-3.99-1.72-.08-.07-.16-.14-.24-.21v6.56c.06 2-.4 4.09-1.63 5.67-1.22 1.56-3.14 2.53-5.12 2.7-1.99.18-4.08-.28-5.65-1.52-1.56-1.23-2.52-3.15-2.68-5.13-.17-1.98.29-4.08 1.53-5.65 1.23-1.56 3.14-2.52 5.12-2.68 1.21-.1 2.43.1 3.51.68V.02zm-1.89 11.96c-.79-.08-1.62.1-2.24.61-.63.51-.99 1.3-1.04 2.1-.05.8.27 1.61.88 2.13.62.53 1.48.66 2.25.49.77-.17 1.43-.72 1.73-1.45.3-.73.23-1.59-.18-2.26-.35-.55-.91-.94-1.53-.98l.13-.64z" />
-                    </svg>
-                  </a>
-                )}
-              </div>
-            </div>
-
-          </div>
-
-          <div className="pt-8 border-t border-gray-900/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
-            <div className="space-y-0.5">
-              {configs.footer_config.direitos_reservados.trim() && (
-                <p className="text-white font-extrabold text-[10px] uppercase tracking-wider">
-                  {configs.footer_config.direitos_reservados.trim()}
-                </p>
-              )}
-              <p className="text-[9px] tracking-wide uppercase text-gray-600 font-semibold">
-                © {new Date().getFullYear()} {configs.footer_config.texto_rodape.trim() || 'Todos os direitos reservados.'}{configs.footer_config.cnpj.trim() && ` | CNPJ: ${configs.footer_config.cnpj.trim()}`}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 bg-[#0A0A0B] border border-gray-800/60 px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-[#22C55E] shrink-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse"></span>
-              <span>Conexão Segura SSL</span>
-            </div>
-          </div>
-
-          <div className="mt-8 pt-6 border-t border-gray-900/40 text-center">
-            <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">
-              Desenvolvido por{' '}
-              <a
-                href="https://agenciajn.com.br"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-white hover:underline transition-all duration-300"
-              >
-                Agência JN
+            <p className="mt-6 text-sm text-zinc-500">
+              Procura outra medida?{' '}
+              <a href={whatsappLink('Olá! Vim pelo site e procuro outra medida de pneu: ')} target="_blank" rel="noopener noreferrer" className="font-semibold text-zinc-300 underline underline-offset-4 hover:text-white">
+                Pergunta no WhatsApp
               </a>
+              .
             </p>
           </div>
+        </section>
 
+        {/* ── Liso ou borrachudo ──────────────────────────────────────── */}
+        <section id="liso-ou-borrachudo" className="relative overflow-hidden border-y border-white/5 bg-[#0E0E10] py-20 sm:py-28">
+          <Image
+            src="/lp/pneu-295.webp"
+            alt=""
+            width={1800}
+            height={552}
+            sizes="100vw"
+            className="pointer-events-none absolute inset-y-0 right-0 h-full w-auto max-w-none opacity-25"
+          />
+          <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
+            <div className="max-w-2xl">
+              <Rotulo>Guia rápido</Rotulo>
+              <h2 className="titulo text-5xl sm:text-6xl">
+                Liso ou <span className="text-[var(--vermelho)]">borrachudo?</span>
+              </h2>
+              <p className="mt-5 text-lg leading-relaxed text-zinc-300">
+                Cada eixo pede um desenho de banda. Escolher certo é rodar mais e gastar menos.
+              </p>
+            </div>
+            <div className="mt-12 grid gap-5 md:grid-cols-2">
+              {[
+                {
+                  nome: 'Liso',
+                  sub: 'Direcional e carreta',
+                  Banda: BandaLisa,
+                  pontos: ['Sulcos contínuos: roda macio e estável', 'Menos atrito, mais economia no asfalto', 'Ideal para eixo dianteiro e carretas'],
+                },
+                {
+                  nome: 'Borrachudo',
+                  sub: 'Tração',
+                  Banda: BandaBorrachuda,
+                  pontos: ['Blocos que mordem o chão', 'Mais aderência em subida, chuva e terra', 'Ideal para o eixo de tração'],
+                },
+              ].map(({ nome, sub, Banda, pontos }) => (
+                <article key={nome} className="flex flex-col gap-5 rounded-3xl border border-white/10 bg-black/50 p-6 backdrop-blur sm:flex-row sm:gap-6 sm:p-8">
+                  <Banda className="h-32 w-auto shrink-0 self-start drop-shadow-[0_10px_20px_rgba(0,0,0,.6)] sm:h-52" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--vermelho)]">{sub}</p>
+                    <h3 className="titulo mt-1 text-[2.8rem] sm:text-5xl">{nome}</h3>
+                    <ul className="mt-4 space-y-2.5">
+                      {pontos.map((p) => (
+                        <li key={p} className="flex gap-2.5 text-[15px] leading-snug text-zinc-300">
+                          <IconeCheck className="mt-0.5 h-4 w-4 shrink-0 text-[var(--vermelho)]" />
+                          {p}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <p className="mt-6 text-sm text-zinc-400">
+              Na dúvida, escolhe &ldquo;Não sei&rdquo; na cotação: a gente indica o certo para o seu eixo.
+            </p>
+          </div>
+        </section>
+
+        {/* ── Como ler a medida ───────────────────────────────────────── */}
+        <section className="py-20 sm:py-28">
+          <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2">
+            <div>
+              <Rotulo>Sem erro na compra</Rotulo>
+              <h2 className="titulo text-5xl sm:text-6xl">
+                Como ler a <span className="text-[var(--vermelho)]">medida</span> do pneu
+              </h2>
+              <p className="mt-5 text-lg leading-relaxed text-zinc-300">
+                A medida está escrita na lateral do pneu. Ela diz a largura, a altura e o aro. Se ficar na dúvida, manda uma
+                foto que a gente confere pra você.
+              </p>
+              <BotaoZap mensagem="Olá! Vim pelo site. Vou mandar a foto da lateral do meu pneu para vocês verem a medida." className="mt-8">
+                Mandar foto do pneu
+              </BotaoZap>
+            </div>
+            <figure className="rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.05] to-transparent p-6 sm:p-10">
+              <p className="titulo text-center text-[3.4rem] leading-none sm:text-7xl" aria-label="Exemplo de medida: 295 barra 80 R 22.5">
+                <span className="text-white">295</span>
+                <span className="text-zinc-600">/</span>
+                <span className="text-[var(--vermelho)]">80</span>
+                <span className="text-zinc-400"> R</span>
+                <span className="text-white">22.5</span>
+              </p>
+              <dl className="mt-8 grid gap-3 sm:grid-cols-2">
+                {[
+                  ['295', 'Largura do pneu, em milímetros.'],
+                  ['80', 'Altura do flanco: 80% da largura.'],
+                  ['R', 'Construção radial, a dos pneus de caminhão de hoje.'],
+                  ['22.5', 'Diâmetro do aro (da roda), em polegadas.'],
+                ].map(([k, v]) => (
+                  <div key={k} className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                    <dt className="titulo text-3xl text-[var(--vermelho)]">{k}</dt>
+                    <dd className="mt-1 text-sm leading-snug text-zinc-300">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+            </figure>
+          </div>
+        </section>
+
+        {/* ── Por que a iAlves ────────────────────────────────────────── */}
+        <section className="relative border-y border-white/5 bg-[#0E0E10] py-20 sm:py-28">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <div className="max-w-2xl">
+              <Rotulo>Por que a iAlves</Rotulo>
+              <h2 className="titulo text-5xl sm:text-6xl">
+                Feita pra quem <span className="text-[var(--vermelho)]">vive na estrada</span>
+              </h2>
+            </div>
+            <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                ['2 min', 'Cotação no WhatsApp', 'Você manda a medida e recebe a resposta rapidinho, de onde estiver.'],
+                ['À vista', 'Preço que cabe', 'Preço para pagamento à vista, direto para o cliente final e para frotas.'],
+                ['Estoque', 'Pronta entrega', 'Pneus novos prontos para sair. Caminhão parado é dinheiro perdido.'],
+                ['Gente', 'Atendimento de verdade', 'Quem te responde entende de pneu e indica o certo para o seu eixo.'],
+              ].map(([n, t, d]) => (
+                <div key={t} className="rounded-3xl border border-white/10 bg-black/40 p-6">
+                  <p className="titulo text-4xl text-[var(--vermelho)]">{n}</p>
+                  <h3 className="mt-3 text-lg font-bold text-white">{t}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-zinc-400">{d}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-14">
+              <p className="text-center text-xs font-bold uppercase tracking-[0.24em] text-zinc-500">Marcas que trabalhamos</p>
+              <ul className="mt-5 flex flex-wrap justify-center gap-2.5">
+                {MARCAS.map((m) => (
+                  <li key={m} className="titulo rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-xl not-italic tracking-wide text-zinc-300">
+                    {m}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-4 text-center text-xs text-zinc-600">Disponibilidade de marca e modelo varia conforme o estoque.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Indicação premiada ──────────────────────────────────────── */}
+        <section id="indicacao" className="py-20 sm:py-28">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <div className="relative overflow-hidden rounded-[2rem] border border-[var(--vermelho)]/40 bg-gradient-to-br from-[#2a0507] via-[#120304] to-black p-7 sm:p-12">
+              <div aria-hidden className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[var(--vermelho)]/25 blur-3xl" />
+              <div className="relative grid items-center gap-10 lg:grid-cols-[1.2fr_1fr]">
+                <div>
+                  <Rotulo>Indicação premiada</Rotulo>
+                  <h2 className="titulo text-5xl sm:text-6xl">
+                    Indicou, comprou, <span className="text-[var(--vermelho)]">ganhou.</span>
+                  </h2>
+                  <p className="mt-5 max-w-lg text-lg leading-relaxed text-zinc-300">
+                    Conhece alguém precisando de pneu? Indica a iAlves. Quando a pessoa comprar, você ganha{' '}
+                    <strong className="text-white">R$ 20 por pneu</strong>.
+                  </p>
+                  <BotaoZap mensagem="Olá! Vim pelo site e quero indicar uma pessoa para a Indicação Premiada." className="mt-8">
+                    Quero indicar alguém
+                  </BotaoZap>
+                  <p className="mt-4 text-xs text-zinc-500">Não acumula com descontos de queima de estoque. Parte das vendas ajuda o Projeto Semear.</p>
+                </div>
+                <div className="rounded-3xl border border-white/10 bg-black/50 p-7 text-center">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-zinc-400">Exemplo</p>
+                  <p className="mt-3 text-zinc-300">Seu indicado comprou 10 pneus</p>
+                  <p className="titulo mt-2 text-7xl text-white">
+                    R$ <span className="text-[var(--vermelho)]">200</span>
+                  </p>
+                  <p className="mt-1 text-zinc-300">de prêmio pra você</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Dúvidas ─────────────────────────────────────────────────── */}
+        <section id="duvidas" className="pb-20 sm:pb-28">
+          <div className="mx-auto max-w-3xl px-4 sm:px-6">
+            <Rotulo>Dúvidas</Rotulo>
+            <h2 className="titulo text-5xl sm:text-6xl">Perguntas frequentes</h2>
+            <div className="mt-10 divide-y divide-white/10 border-y border-white/10">
+              {FAQ.map((f) => (
+                <details key={f.p} className="group py-5">
+                  <summary className="flex cursor-pointer items-center justify-between gap-6 text-left text-lg font-semibold text-white">
+                    {f.p}
+                    <span aria-hidden className="giro flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/15 text-xl text-[var(--vermelho)] transition-transform">
+                      +
+                    </span>
+                  </summary>
+                  <p className="mt-3 pr-12 leading-relaxed text-zinc-400">{f.r}</p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Chamada final ───────────────────────────────────────────── */}
+        <section className="relative isolate overflow-hidden py-24 sm:py-32">
+          <Image src="/lp/estrada.webp" alt="" fill sizes="100vw" className="-z-10 object-cover opacity-60" />
+          <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-t from-black via-black/60 to-black/80" />
+          <div className="mx-auto max-w-4xl px-4 text-center sm:px-6">
+            <h2 className="titulo text-5xl sm:text-7xl">
+              <span className="texto-cromado">Caminhão parado</span>
+              <br />
+              <span className="text-[var(--vermelho)]">é dinheiro perdido.</span>
+            </h2>
+            <p className="mx-auto mt-6 max-w-xl text-lg text-zinc-200">Manda a medida agora e volta pra estrada com pneu novo.</p>
+            <BotaoZap className="mt-9 h-16 px-9 text-lg">Fazer minha cotação agora</BotaoZap>
+            <p className="mt-4 text-sm text-zinc-400">Sem cadastro · Sem burocracia · Resposta rápida</p>
+          </div>
+        </section>
+      </main>
+
+      {/* ── Rodapé ──────────────────────────────────────────────────────── */}
+      <footer className="border-t border-white/5 bg-black pb-28 pt-14 text-zinc-400 sm:pb-12">
+        <div className="mx-auto grid max-w-6xl gap-10 px-4 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr]">
+          <div>
+            <Image src="/lp/logo.webp" alt="iAlves Pneus" width={560} height={239} className="h-12 w-auto" />
+            <p className="mt-4 max-w-sm text-sm leading-relaxed">
+              Pneus novos para caminhão e ônibus em {SITE.city}/{SITE.region}. Liso e borrachudo, pronta entrega e preço à vista.
+            </p>
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">Fale com a gente</p>
+            <a href={whatsappLink()} target="_blank" rel="noopener noreferrer" className="mt-4 flex items-center gap-2.5 font-semibold text-white hover:text-[var(--zap)]">
+              <IconeZap className="h-5 w-5 text-[var(--zap)]" />
+              {SITE.whatsappDisplay}
+            </a>
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">Redes sociais</p>
+            <div className="mt-4 flex flex-col gap-3">
+              <a href={SITE.instagram} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 font-semibold text-white hover:text-[var(--vermelho)]">
+                <IconeInstagram className="h-5 w-5" /> {SITE.instagramHandle}
+              </a>
+              <a href={SITE.facebook} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 font-semibold text-white hover:text-[var(--vermelho)]">
+                <IconeFacebook className="h-5 w-5" /> Facebook
+              </a>
+            </div>
+          </div>
+        </div>
+        <div className="mx-auto mt-12 flex max-w-6xl flex-col gap-4 border-t border-white/5 px-4 pt-6 text-xs sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <p>
+            © {new Date().getFullYear()} iAlves Pneus. Valores e disponibilidade sujeitos a alteração sem aviso prévio. Imagens
+            ilustrativas.
+          </p>
+          <a
+            href={AGENCY.whatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex shrink-0 items-center gap-2 opacity-60 transition-opacity hover:opacity-100"
+            title="Quer um site assim? Fale com a Agência JN"
+          >
+            <span>Site por</span>
+            <Image src="/lp/agencia-jn.png" alt={AGENCY.name} width={900} height={202} className="h-[18px] w-auto" />
+          </a>
         </div>
       </footer>
 
-      {/* Botão Flutuante do WhatsApp — Premium */}
-      {configs.whatsapp_numero.trim() && (
-        <a
-          href={getWhatsappLink(configs.whatsapp_numero, 'Olá, vim através do site.')}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-[#25D366] hover:bg-[#1EBE5D] text-white rounded-full shadow-[0_4px_20px_rgba(37,211,102,0.4)] hover:shadow-[0_6px_30px_rgba(37,211,102,0.55)] hover:scale-110 active:scale-95 transition-all duration-300 flex items-center justify-center group"
-          aria-label="Fale Conosco no WhatsApp"
-        >
-          {/* Anel pulsante */}
-          <span className="absolute inset-0 rounded-full bg-[#25D366]/30 animate-ping pointer-events-none"></span>
-          <svg className="w-7 h-7 fill-current relative z-10 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 24 24">
-            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-          </svg>
-        </a>
-      )}
-
-    </div>
-  );
+      {/* ── Balão do WhatsApp ───────────────────────────────────────────── */}
+      <a
+        href={whatsappLink()}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Conversar no WhatsApp"
+        className="balao-zap fixed bottom-5 right-5 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--zap)] text-white shadow-2xl"
+      >
+        <IconeZap className="h-9 w-9" />
+      </a>
+    </>
+  )
 }

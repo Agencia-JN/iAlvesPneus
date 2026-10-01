@@ -6,6 +6,11 @@
   --accent: #DC2626;
   --asphalt: #1F2937;
   --asphalt-light: #9CA3AF;
+  /* landing */
+  --vermelho: #E3141B;
+  --vermelho-escuro: #A80E13;
+  --zap: #1FAF54;
+  --fundo: #0A0A0B;
 }
 
 @theme {
@@ -19,7 +24,7 @@
 body {
   background-color: var(--background);
   color: var(--foreground);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  font-family: var(--font-texto), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   margin: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -70,3 +75,68 @@ body {
 .animate-slide-in {
   animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+
+/* ─── Landing page ─────────────────────────────────────────────────────── */
+html { scroll-behavior: smooth; scroll-padding-top: 84px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+.titulo {
+  font-family: var(--font-titulo), 'Arial Narrow', sans-serif;
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: -0.01em;
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+.texto-cromado {
+  background: linear-gradient(180deg, #ffffff 0%, #e7e7ea 45%, #a9a9b2 60%, #f4f4f6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.botao-zap {
+  background: linear-gradient(180deg, #25c45f 0%, var(--zap) 100%);
+  box-shadow: 0 10px 30px -8px rgba(31, 175, 84, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+.botao-zap:hover { filter: brightness(1.06); box-shadow: 0 14px 34px -8px rgba(31, 175, 84, 0.8), inset 0 1px 0 rgba(255,255,255,.25); }
+.botao-zap:active { transform: translateY(1px) scale(0.99); }
+
+.botao-vermelho {
+  background: linear-gradient(180deg, #f2242b 0%, var(--vermelho-escuro) 100%);
+  box-shadow: 0 10px 30px -10px rgba(227, 20, 27, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+.botao-vermelho:hover { filter: brightness(1.08); }
+.botao-vermelho:active { transform: translateY(1px); }
+
+/* Faixa vermelha inclinada (assinatura visual) */
+.faixa-diagonal {
+  background: linear-gradient(90deg, transparent, var(--vermelho) 20%, var(--vermelho) 80%, transparent);
+  transform: skewY(-3deg);
+}
+
+/* Fita de medidas rolando */
+@keyframes rolar { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.fita { animation: rolar 38s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .fita { animation: none; } }
+
+/* Pulso do balão do WhatsApp */
+@keyframes pulso { 0% { box-shadow: 0 0 0 0 rgba(31,175,84,.55); } 70% { box-shadow: 0 0 0 16px rgba(31,175,84,0); } 100% { box-shadow: 0 0 0 0 rgba(31,175,84,0); } }
+.balao-zap { animation: pulso 2.4s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) { .balao-zap { animation: none; } }
+
+/* Textura de piso de galpão */
+.textura-grade {
+  background-image:
+    linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+details > summary { list-style: none; }
+details > summary::-webkit-details-marker { display: none; }
+details[open] .giro { transform: rotate(45deg); }

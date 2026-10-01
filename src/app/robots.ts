@@ -1,12 +1,15 @@
-import { MetadataRoute } from 'next';
+import type { MetadataRoute } from 'next'
+import { SITE } from '@/config/site'
 
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: '/central-diretoria/',
+      // partes do site antigo que ficaram guardadas: fora do Google
+      disallow: ['/central-diretoria', '/blog', '/api/'],
     },
-    sitemap: 'https://ialvespneus.com.br/sitemap.xml',
-  };
+    sitemap: `${SITE.url}/sitemap.xml`,
+    host: SITE.url,
+  }
 }
